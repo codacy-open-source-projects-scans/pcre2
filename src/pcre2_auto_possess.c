@@ -7,7 +7,7 @@ and semantics are as close as possible to those of the Perl 5 language.
 
                        Written by Philip Hazel
      Original API code Copyright (c) 1997-2012 University of Cambridge
-          New API code Copyright (c) 2016-2022 University of Cambridge
+          New API code Copyright (c) 2016-2024 University of Cambridge
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
@@ -581,7 +581,7 @@ for(;;)
     continue;
     }
 
-  /* At the end of a branch, skip to the end of the group. */
+  /* At the end of a branch, skip to the end of the group and process it. */
 
   if (c == OP_ALT)
     {
@@ -638,19 +638,29 @@ for(;;)
         return FALSE;
       break;
 
-      /* Atomic sub-patterns and assertions can always auto-possessify their
-      last iterator except for variable length lookbehinds. However, if the
-      group was entered as a result of checking a previous iterator, this is
-      not possible. */
+      /* Atomic sub-patterns and forward assertions can always auto-possessify
+      their last iterator. However, if the group was entered as a result of
+      checking a previous iterator, this is not possible. */
 
       case OP_ASSERT:
       case OP_ASSERT_NOT:
       case OP_ONCE:
       return !entered_a_group;
 
+      /* Fixed-length lookbehinds can be treated the same way, but variable
+      length lookbehinds must not auto-possessify their last iterator. Note
+      that in order to identify a variable length lookbehind we must check
+      through all branches, because some may be of fixed length. */
+
       case OP_ASSERTBACK:
       case OP_ASSERTBACK_NOT:
-      return (bracode[1+LINK_SIZE] == OP_VREVERSE)? FALSE : !entered_a_group;
+      do
+        {
+        if (bracode[1+LINK_SIZE] == OP_VREVERSE) return FALSE;  /* Variable */
+        bracode += GET(bracode, 1);
+        }
+      while (*bracode == OP_ALT);
+      return !entered_a_group;  /* Not variable length */
 
       /* Non-atomic assertions - don't possessify last iterator. This needs
       more thought. */
@@ -748,12 +758,12 @@ for(;;)
     if (base_list[0] == OP_CLASS)
 #endif
       {
-      set1 = (uint8_t *)(base_end - base_list[2]);
+      set1 = (const uint8_t *)(base_end - base_list[2]);
       list_ptr = list;
       }
     else
       {
-      set1 = (uint8_t *)(code - list[2]);
+      set1 = (const uint8_t *)(code - list[2]);
       list_ptr = base_list;
       }
 
@@ -762,7 +772,7 @@ for(;;)
       {
       case OP_CLASS:
       case OP_NCLASS:
-      set2 = (uint8_t *)
+      set2 = (const uint8_t *)
         ((list_ptr == list ? code : base_end) - list_ptr[2]);
       break;
 
@@ -777,7 +787,7 @@ for(;;)
         /* Might be an empty repeat. */
         continue;
         }
-      set2 = (uint8_t *)(xclass_flags + 1);
+      set2 = (const uint8_t *)(xclass_flags + 1);
       break;
 #endif
 
@@ -785,21 +795,21 @@ for(;;)
       invert_bits = TRUE;
       /* Fall through */
       case OP_DIGIT:
-      set2 = (uint8_t *)(cb->cbits + cbit_digit);
+      set2 = (const uint8_t *)(cb->cbits + cbit_digit);
       break;
 
       case OP_NOT_WHITESPACE:
       invert_bits = TRUE;
       /* Fall through */
       case OP_WHITESPACE:
-      set2 = (uint8_t *)(cb->cbits + cbit_space);
+      set2 = (const uint8_t *)(cb->cbits + cbit_space);
       break;
 
       case OP_NOT_WORDCHAR:
       invert_bits = TRUE;
       /* Fall through */
       case OP_WORDCHAR:
-      set2 = (uint8_t *)(cb->cbits + cbit_word);
+      set2 = (const uint8_t *)(cb->cbits + cbit_word);
       break;
 
       default:
@@ -1084,7 +1094,7 @@ for(;;)
 
       case OP_CLASS:
       if (chr > 255) break;
-      class_bitset = (uint8_t *)
+      class_bitset = (const uint8_t *)
         ((list_ptr == list ? code : base_end) - list_ptr[2]);
       if ((class_bitset[chr >> 3] & (1u << (chr & 7))) != 0) return FALSE;
       break;

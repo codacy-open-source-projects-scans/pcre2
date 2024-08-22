@@ -1928,7 +1928,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
 #define Lmax               F->temp_32[1]
 #define Lstart_eptr        F->temp_sptr[0]
 #define Lbyte_map_address  F->temp_sptr[1]
-#define Lbyte_map          ((unsigned char *)Lbyte_map_address)
+#define Lbyte_map          ((const unsigned char *)Lbyte_map_address)
 
     case OP_NCLASS:
     case OP_CLASS:
@@ -5931,14 +5931,20 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
         (char *)P->eptr - (char *)mb->start_subject);
 #endif
 
-      /* If we are at the end of an assertion that is a condition, return a
-      match, discarding any intermediate backtracking points. Copy back the
-      mark setting and the captures into the frame before N so that they are
-      set on return. Doing this for all assertions, both positive and negative,
-      seems to match what Perl does. */
+      /* If we are at the end of an assertion that is a condition, first check
+      to see if we are at the end of a variable-length branch in a lookbehind.
+      If this is the case and we have not landed on the current character,
+      return no match. Compare code below for non-condition lookbehinds. In
+      other cases, return a match, discarding any intermediate backtracking
+      points. Copy back the mark setting and the captures into the frame before
+      N so that they are set on return. Doing this for all assertions, both
+      positive and negative, seems to match what Perl does. */
 
       if (GF_IDMASK(N->group_frame_type) == GF_CONDASSERT)
         {
+        if ((*bracode == OP_ASSERTBACK || *bracode == OP_ASSERTBACK_NOT) &&
+            branch_start[1 + LINK_SIZE] == OP_VREVERSE && Feptr != P->eptr)
+          RRETURN(MATCH_NOMATCH);
         memcpy((char *)P + offsetof(heapframe, ovector), Fovector,
           Foffset_top * sizeof(PCRE2_SIZE));
         P->offset_top = Foffset_top;
@@ -6973,7 +6979,7 @@ mb->mark = mb->nomatch_mark = NULL;          /* In case never set */
 /* The name table is needed for finding all the numbers associated with a
 given name, for condition testing. The code follows the name table. */
 
-mb->name_table = (PCRE2_UCHAR *)((uint8_t *)re + sizeof(pcre2_real_code));
+mb->name_table = (PCRE2_SPTR)((const uint8_t *)re + sizeof(pcre2_real_code));
 mb->name_count = re->name_count;
 mb->name_entry_size = re->name_entry_size;
 mb->start_code = mb->name_table + re->name_count * re->name_entry_size;
