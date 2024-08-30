@@ -6139,4 +6139,140 @@ a)"xI
 
 /(?<=xy|a.b?|cd)/B
 
+# Tests for scan substring, a non Perl feature of PCRE2
+
+# Parse errors first
+
+/(*scs:/
+
+/(*scan_substring:(/
+
+/(*scs:('name'/
+
+/(*scs:(1)a|b)/
+
+/(*scs:(0)a)/
+
+/(*scan_substring:(1)a|b)/
+
+/(*scs:(<name>)a|b)/
+
+/(*scan_substring:(<name>)a|b)/
+
+# Tests for iterating scan_substring
+
+/(a)(*scs:(1)b)*c/B
+
+/(a)(*scs:(1)b)*?c/B
+
+/(a)(*scs:(1)b)*+c/B
+
+/(a)(*scs:(1)b)+c/B
+
+/(a)(*scs:(1)b)+?c/B
+
+/(a)(*scs:(1)b)++c/B
+
+/(a)(*scs:(1)b)?c/B
+
+/(a)(*scs:(1)b)??c/B
+
+/(a)(*scs:(1)b)?+c/B
+
+/(a)(*scs:(1)b){3}c/B
+
+/(a)(*scs:(1)b){3,5}?c/B
+
+/(a)(*scs:(1)b){3,}+c/B
+
+/(\w++)=(?(*scs:(1)(abc))pqr|xyz)(\w++)/
+
+# Tests for scan_substring
+
+/([a-z]++)(*scs:(1)(stx)|(ne))(.)/B
+    ##string##next!##
+    __aastxaa:__
+    __abababab:__
+
+/(?<XX>[a-z]++)##(*scan_substring:('XX').*(..)$)\2/B
+    ##abcd##abcd##cd##
+    ##abcd##abcd##abcd##
+
+/([a-z])([a-z]++)(#+)(*scs:(2)(ab.))/
+    xab##
+    yabc###
+    zababc####
+
+/(?:(?<YYY>[a-z]++)|(?<YYY>[0-9]++)|$)(*scan_substring:('YYY')((?<START>.).*\k<START>$))/dupnames
+    $$abacd$$112345$$abca$$
+    $$abcdeaf$$1234567819$$123456781$$
+
+/([a-zA-Z]+)(*scs:(1).*?(?<ABC>[A-Z]+)(*scan_substring:('ABC').*(.)\3))#+/
+    ##abABCtuTUVXz##abCDEFGxyCDEEFGhi##
+    ##abAABCtuTUVXXz!!abCDEFGxyCDEFGGhi##
+
+/([a-zA-Z]+)(*scs:(1)(xy|ab(*ACCEPT)cd))/
+    ##cdefgh##cdeabxy##
+
+/([a-z]++)##(*scs:(1)(abc))?!/
+    ##xyz##abc##!
+    ##xyz##!
+    ##xyz##
+
+/([a-z]++)##(*scs:(1)(abc))??(?(2)!|:)/
+    ##abc##abc##!
+    ##abc##xyz##:
+    ##abc###
+
+/([a-z]++)##(*scs:(1)(abc)|xyz){8}(?(2)!|:)/
+    ##abc##abc##!
+    ##abc##xyz##:
+    ##nnn##!
+    ##nnn##:
+
+/[A-Z]{3}([A-Z]++)#(*scs:(1)(?<=BC)XY)#/
+    ABCXY##AKCXY##
+  
+/()(\w++)=(*scs:(2)(?=abc))(\w++)/
+    xabcx=pqr.
+      
+/(\d++)(*scs:(1)\d+\z)(\w+)/
+    X123XYZ
+
+/(\d++)(*scs:(1)\d+\Z)(\w+)/
+    X123XYZ
+
+/(\d++)(*scs:(1)\d+$)(\w+)/
+    X123XYZ
+
+/([a-z]{2})[a-z](*scs:(1)(.*?))\2$/
+    abcab
+    abcabc
+
+/^(([a-z]([a-z]*+))(*scs:(2).(?=(?1)|$)\3)|#){5}/
+    abcdefg#hijk#!
+    abcdefg#hijk#lmnopqr#
+
+/(*scs:(1)a)(a)|x/
+    a
+    x
+
+/(*scs:(<GOOD_NAME>)a)(?<GOOD_NAME>a)(?<GOOD_NAME>b)(?<GOOD_NAME>c)(?<GOOD_NAME>d)|x/dupnames
+    abcd
+    x
+
+/(*scs:(1)a)?(a)/
+    b
+    a
+
+/(*scs:(1)a)??(a)/
+    b
+    a
+
+# Custom backtrack, goes back n - 1 characters in the input (n=8)
+/x(?|(*scs:(1)(?<=(.)))|()){8}/
+    abcdefghx
+
+# --------------
+
 # End of testinput2
