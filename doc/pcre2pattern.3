@@ -1,4 +1,4 @@
-.TH PCRE2PATTERN 3 "12 August 2024" "PCRE2 10.45"
+.TH PCRE2PATTERN 3 "04 Sepbember 2024" "PCRE2 10.45"
 .SH NAME
 PCRE2 - Perl-compatible regular expressions (revised API)
 .SH "PCRE2 REGULAR EXPRESSION DETAILS"
@@ -382,11 +382,11 @@ the pattern (that is, \eE is assumed at the end). If the isolated \eQ is inside
 a character class, this causes an error, because the character class is then
 not terminated by a closing square bracket.
 .P
-Another difference from Perl is that any appearance of \eQ or \eE inside what 
-might otherwise be a quantifier causes PCRE2 not to recognize the sequence as a 
-quantifier. Perl recognizes a quantifier if (redundantly) either of the numbers 
-is inside \eQ...\eE, but not if the separating comma is. When not recognized as 
-a quantifier a sequence such as {\eQ1\eE,2} is treated as the literal string 
+Another difference from Perl is that any appearance of \eQ or \eE inside what
+might otherwise be a quantifier causes PCRE2 not to recognize the sequence as a
+quantifier. Perl recognizes a quantifier if (redundantly) either of the numbers
+is inside \eQ...\eE, but not if the separating comma is. When not recognized as
+a quantifier a sequence such as {\eQ1\eE,2} is treated as the literal string
 "{1,2}".
 .
 .
@@ -845,7 +845,7 @@ examples are all equivalent:
 .sp
   \ep{bidiclass=al}
   \ep{BC=al}
-  \ep{ Bidi_Class : AL } 
+  \ep{ Bidi_Class : AL }
   \ep{ Bi-di class = Al }
   \eP{ ^ Bi-di class = Al }
 .sp
@@ -1088,7 +1088,7 @@ explicitly. These properties are:
 .sp
 Xan matches characters that have either the L (letter) or the N (number)
 property. Xps matches the characters tab, linefeed, vertical tab, form feed, or
-carriage return, and any other character that has the Z (separator) property 
+carriage return, and any other character that has the Z (separator) property
 (this includes the space character). Xsp is the same as Xps; in PCRE1 it used
 to exclude vertical tab, for Perl compatibility, but Perl changed. Xwd matches
 the same characters as Xan, plus those that match Mn (non-spacing mark) or Pc
@@ -2419,21 +2419,31 @@ as normal.
 .SH ASSERTIONS
 .rs
 .sp
-An assertion is a test on the characters following or preceding the current
-matching point that does not consume any characters. The simple assertions
-coded as \eb, \eB, \eA, \eG, \eZ, \ez, ^ and $ are described
+An assertion is a test that does not consume any characters. The test must
+succeed for the match to continue. The simple assertions coded as \eb, \eB,
+\eA, \eG, \eZ, \ez, ^ and $ are described
 .\" HTML <a href="#smallassertions">
 .\" </a>
 above.
 .\"
 .P
-More complicated assertions are coded as parenthesized groups. There are two
-kinds: those that look ahead of the current position in the subject string, and
-those that look behind it, and in each case an assertion may be positive (must
-match for the assertion to be true) or negative (must not match for the
-assertion to be true). An assertion group is matched in the normal way,
-and if it is true, matching continues after it, but with the matching position
+More complicated assertions are coded as parenthesized groups. If matching such
+a group succeeds, matching continues after it, but with the matching position
 in the subject string reset to what it was before the assertion was processed.
+.P
+A special kind of assertion, called a "scan substring" assertion, matches a
+subpattern against a previously captured substring. This is described in the
+section entitled
+.\" HTML <a href="#scansubstringassertions">
+.\" </a>
+"Scan substring assertions"
+.\"
+below. It is a PCRE2 extension, not compatible with Perl.
+.P
+The other goup-based assertions are of two kinds: those that look ahead of the
+current position in the subject string, and those that look behind it, and in
+each case an assertion may be positive (must match for the assertion to be
+true) or negative (must not match for the assertion to be true).
 .P
 The Perl-compatible lookaround assertions are atomic. If an assertion is true,
 but there is a subsequent matching failure, there is no backtracking into the
@@ -2724,6 +2734,65 @@ that assertions that appear as conditions for
 conditional groups
 .\"
 (see below) must be atomic.
+.
+.
+.\" HTML <a name="scansubstringassertions"></a>
+.SH "SCAN SUBSTRING ASSERTIONS"
+.rs
+.sp
+A special kind of assertion, not compatible with Perl, makes it possible to
+check the contents of a captured substring by matching it with a subpattern.
+Because this involves capturing, this feature is not supported by
+\fBpcre2_dfa_match()\fP.
+.P
+A scan substring assertion starts with the sequence (*scan_substring: or
+(*scs: which is followed by a list of substring numbers (absolute or relative)
+and/or substring names enclosed in single quotes or angle brackets, all within
+parentheses. The rest of the item is the subpattern that is applied to the
+substring, as shown in these examples:
+.sp
+  (*scan_substring:(1)...)
+  (*scs:(-2)...)
+  (*scs:('AB')...)
+  (*scs:(1,'AB',-2)...)
+.sp
+The list of groups is checked in the order they are given, and it is the
+contents of the first one that is found to be set that are scanned. When
+PCRE2_DUPNAMES is set and there are ambiguous group names, all groups with the
+same name are checked in numerical order. A scan substring assertion fails if
+none of the groups it references have been set.
+.P
+The pattern match on the substring is always anchored, that is, it must match
+from the start of the substring. There is no "bumpalong" if it does not match
+at the start. The end of the subject is temporarily reset to be the end of the
+substring, so \eZ, \ez, and $ will match there. However, the start of the
+subject is \fInot\fP reset. This means that ^ matches only if the substring is
+actually at the start of the main subject, but it also means that lookbehind
+assertions into what precedes the substring are possible.
+.P
+Here is a very simple example: find a word that contains the rare (in English)
+sequence of letters "rh" not at the start:
+.sp
+  \eb(\ew++)(*scs:(1).+rh)
+.sp
+The first group captures a word which is then scanned by the second group.
+This example does not actually need this heavyweight feature; the same match
+can be achieved with:
+.sp
+  \eb\ew+?rh\ew*\eb
+.sp
+When things are more complicated, however, scanning a captured substring can be
+a useful way to describe the required match. For exmple, there is a rather
+complicated pattern in the PCRE2 test data that checks an entire subject string
+for a palindrome, that is, the sequence of letters is the same in both
+directions. Suppose you want to search for individual words of two or more
+characters such as "level" that are palindromes:
+.sp
+  (\eb\ew{2,}+\eb)(*scs:(1)...palindrome-matching-pattern...)
+.sp
+Within a substring scanning subpattern, references to other groups work as
+normal. Capturing groups may appear, and will retain their values during
+ongoing matching if the assertion succeeds.
 .
 .
 .SH "SCRIPT RUNS"
@@ -3414,8 +3483,8 @@ not there. Any number of these verbs may occur in a pattern. Except for
 .P
 Since these verbs are specifically related to backtracking, most of them can be
 used only when the pattern is to be matched using the traditional matching
-function, because that uses a backtracking algorithm. With the exception of
-(*FAIL), which behaves like a failing negative assertion, the backtracking
+function or JIT, because they use backtracking algorithms. With the exception
+of (*FAIL), which behaves like a failing negative assertion, the backtracking
 control verbs cause an error if encountered by the DFA matching function.
 .P
 The behaviour of these verbs in
@@ -3594,9 +3663,9 @@ The following verbs do nothing when they are encountered. Matching continues
 with what follows, but if there is a subsequent match failure, causing a
 backtrack to the verb, a failure is forced. That is, backtracking cannot pass
 to the left of the verb. However, when one of these verbs appears inside an
-atomic group or in a lookaround assertion that is true, its effect is confined
-to that group, because once the group has been matched, there is never any
-backtracking into it. Backtracking from beyond an assertion or an atomic group
+atomic group or in an atomic lookaround assertion that is true, its effect is
+confined to that group, because once the group has been matched, there is never
+any backtracking into it. Backtracking from beyond an atomic assertion or group
 ignores the entire group, and seeks a preceding backtracking point.
 .P
 These verbs differ in exactly what kind of failure occurs when backtracking
@@ -3848,11 +3917,16 @@ backtrack that occurs after such an assertion is complete does not jump back
 into the assertion. Note in particular that a (*MARK) name that is set in an
 assertion is not "seen" by an instance of (*SKIP:NAME) later in the pattern.
 .P
-PCRE2 now supports non-atomic positive assertions, as described in the section
-entitled
+PCRE2 now supports non-atomic positive assertions and also "scan substring"
+assertions, as described in the sections entitled
 .\" HTML <a href="#nonatomicassertions">
 .\" </a>
 "Non-atomic assertions"
+.\"
+and
+.\" HTML <a href="#scansubstringassertions">
+.\" </a>
+"Scan substring assertions"
 .\"
 above. These assertions must be standalone (not used as conditions). They are
 not Perl-compatible. For these assertions, a later backtrack does jump back
@@ -3861,7 +3935,8 @@ backtracks from later in the pattern.
 .P
 The effect of (*THEN) is not allowed to escape beyond an assertion. If there
 are no more branches to try, (*THEN) causes a positive assertion to be false,
-and a negative assertion to be true.
+and a negative assertion to be true. This behaviour differs from Perl when the
+assertion has only one branch.
 .P
 The other backtracking verbs are not treated specially if they appear in a
 standalone positive assertion. In a conditional positive assertion,
@@ -3916,6 +3991,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 12 August 2024
+Last updated: 04 September 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi
