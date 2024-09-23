@@ -1,4 +1,4 @@
-.TH PCRE2TEST 1 "23 July 2024" "PCRE 10.45"
+.TH PCRE2TEST 1 "21 September 2024" "PCRE 10.45"
 .SH NAME
 pcre2test - a program for testing Perl-compatible regular expressions.
 .SH SYNOPSIS
@@ -622,9 +622,11 @@ for a description of the effects of these options.
       never_utf                 set PCRE2_NEVER_UTF
   /n  no_auto_capture           set PCRE2_NO_AUTO_CAPTURE
       no_auto_possess           set PCRE2_NO_AUTO_POSSESS
+      no_bs0                    set PCRE2_EXTRA_NO_BS0
       no_dotstar_anchor         set PCRE2_NO_DOTSTAR_ANCHOR
       no_start_optimize         set PCRE2_NO_START_OPTIMIZE
       no_utf_check              set PCRE2_NO_UTF_CHECK
+      python_octal              set PCRE2_EXTRA_PYTHON_OCTAL
       ucp                       set PCRE2_UCP
       ungreedy                  set PCRE2_UNGREEDY
       use_offset_limit          set PCRE2_USE_OFFSET_LIMIT
@@ -636,6 +638,24 @@ notation. Otherwise, those less than 0x100 are output in hex without the curly
 brackets. Setting \fButf\fP in 16-bit or 32-bit mode also causes pattern and
 subject strings to be translated to UTF-16 or UTF-32, respectively, before
 being passed to library functions.
+.sp
+The following modifiers enable or disable performance optimizations by
+calling \fBpcre2_set_optimize()\fP before invoking the regex compiler.
+.sp
+      optimization_full      enable all optional optimizations
+      optimization_none      disable all optional optimizations
+      auto_possess           auto-possessify variable quantifiers
+      auto_possess_off       don't auto-possessify variable quantifiers
+      dotstar_anchor         anchor patterns starting with .*
+      dotstar_anchor_off     don't anchor patterns starting with .*
+      start_optimize         enable pre-scan of subject string
+      start_optimize_off     disable pre-scan of subject string
+.sp
+See the
+.\" HREF
+\fBpcre2_set_optimize\fP
+.\"
+documentation for details on these optimizations.
 .
 .
 .\" HTML <a name="controlmodifiers"></a>
@@ -2192,6 +2212,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 23 July 2024
+Last updated: 21 September 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi

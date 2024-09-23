@@ -1,4 +1,4 @@
-.TH PCRE2PATTERN 3 "04 Sepbember 2024" "PCRE2 10.45"
+.TH PCRE2PATTERN 3 "21 Sepbember 2024" "PCRE2 10.45"
 .SH NAME
 PCRE2 - Perl-compatible regular expressions (revised API)
 .SH "PCRE2 REGULAR EXPRESSION DETAILS"
@@ -104,7 +104,8 @@ of the subject.
 .rs
 .sp
 If a pattern starts with (*NO_AUTO_POSSESS), it has the same effect as setting
-the PCRE2_NO_AUTO_POSSESS option. This stops PCRE2 from making quantifiers
+the PCRE2_NO_AUTO_POSSESS option, or calling \fBpcre2_set_optimize()\fP with
+a PCRE2_AUTO_POSSESS_OFF directive. This stops PCRE2 from making quantifiers
 possessive when what follows cannot match the repeated item. For example, by
 default a+b is treated as a++b. For more details, see the
 .\" HREF
@@ -117,8 +118,9 @@ documentation.
 .rs
 .sp
 If a pattern starts with (*NO_START_OPT), it has the same effect as setting the
-PCRE2_NO_START_OPTIMIZE option. This disables several optimizations for quickly
-reaching "no match" results. For more details, see the
+PCRE2_NO_START_OPTIMIZE option, or calling \fBpcre2_set_optimize()\fP with
+a PCRE2_START_OPTIMIZE_OFF directive. This disables several optimizations for
+quickly reaching "no match" results. For more details, see the
 .\" HREF
 \fBpcre2api\fP
 .\"
@@ -129,7 +131,8 @@ documentation.
 .rs
 .sp
 If a pattern starts with (*NO_DOTSTAR_ANCHOR), it has the same effect as
-setting the PCRE2_NO_DOTSTAR_ANCHOR option. This disables optimizations that
+setting the PCRE2_NO_DOTSTAR_ANCHOR option, or calling \fBpcre2_set_optimize()\fP
+with a PCRE2_DOTSTAR_ANCHOR_OFF directive. This disables optimizations that
 apply to patterns whose top-level branches all start with .* (match any number
 of arbitrary characters). For more details, see the
 .\" HREF
@@ -409,17 +412,32 @@ environment, these escapes are as follows:
   \er          carriage return (hex 0D) (but see below)
   \et          tab (hex 09)
   \e0dd        character with octal code 0dd
-  \eddd        character with octal code ddd, or backreference
+  \eddd        character with octal code ddd, or back reference
   \eo{ddd..}   character with octal code ddd..
   \exhh        character with hex code hh
   \ex{hhh..}   character with hex code hhh..
   \eN{U+hhh..} character with Unicode hex code point hhh..
 .sp
-By default, after \ex that is not followed by {, from zero to two hexadecimal
-digits are read (letters can be in upper or lower case). Any number of
-hexadecimal digits may appear between \ex{ and }. If a character other than a
-hexadecimal digit appears between \ex{ and }, or if there is no terminating },
-an error occurs.
+A description of how back references work is given
+.\" HTML <a href="#backreferences">
+.\" </a>
+later,
+.\"
+following the discussion of
+.\" HTML <a href="#group">
+.\" </a>
+parenthesized groups.
+.\"
+.P
+By default, after \ex that is not followed by {, one or two hexadecimal
+digits are read (letters can be in upper or lower case). If the character that
+follows \ex is neither { nor a hexadecimal digit, an error occurs. This is
+different from Perl's default behaviour, which generates a NUL character, but
+is in line with Perl's "strict" behaviour.
+.P
+Any number of hexadecimal digits may appear between \ex{ and }. If a character
+other than a hexadecimal digit appears between \ex{ and }, or if there is no
+terminating }, an error occurs.
 .P
 Characters whose code points are less than 256 can be defined by either of the
 two syntaxes for \ex or by an octal sequence. There is no difference in the way
@@ -479,47 +497,46 @@ APC character. Unfortunately, there are several variants of EBCDIC. In most of
 them the APC character has the value 255 (hex FF), but in the one Perl calls
 POSIX-BC its value is 95 (hex 5F). If certain other characters have POSIX-BC
 values, PCRE2 makes \ec? generate 95; otherwise it generates 255.
-.P
-After \e0 up to two further octal digits are read. If there are fewer than two
-digits, just those that are present are used. Thus the sequence \e0\ex\e015
-specifies two binary zeros followed by a CR character (code value 13). Make
-sure you supply two digits after the initial zero if the pattern character that
-follows is itself an octal digit.
-.P
+.
+.
+.SS "Octal escapes and back references"
+.rs
+.sp
 The escape \eo must be followed by a sequence of octal digits, enclosed in
-braces. An error occurs if this is not the case. This escape is a recent
-addition to Perl; it provides way of specifying character code points as octal
-numbers greater than 0777, and it also allows octal numbers and backreferences
-to be unambiguously specified.
+braces. An error occurs if this is not the case. This escape provides a way of
+specifying character code points as octal numbers greater than 0777, and it
+also allows octal numbers and backreferences to be unambiguously distinguished.
+.P
+If braces are not used, after \e0 up to two further octal digits are read.
+However, if the PCRE2_EXTRA_NO_BS0 option is set, at least one more octal digit
+must follow \e0 (use \e00 to generate a NUL character). Make sure you supply
+two digits after the initial zero if the pattern character that follows is
+itself an octal digit.
+.P
+Inside a character class, when a backslash is followed by any octal digit, up
+to three octal digits are read to generate a code point. Any subsequent digits
+stand for themselves. The sequences \e8 and \e9 are treated as the literal
+characters "8" and "9".
+.P
+Outside a character class, Perl's handling of a backslash followed by a digit
+other than 0 is complicated by ambiguity, and Perl has changed over time,
+causing PCRE2 also to change. From PCRE2 release 10.45 there is an option
+called PCRE2_EXTRA_PYTHON_OCTAL that causes PCRE2 to use Python's unambiguous
+rules. The next two subsections describe the two sets of rules.
 .P
 For greater clarity and unambiguity, it is best to avoid following \e by a
 digit greater than zero. Instead, use \eo{...} or \ex{...} to specify numerical
-character code points, and \eg{...} to specify backreferences. The following
-paragraphs describe the old, ambiguous syntax.
-.P
-The handling of a backslash followed by a digit other than 0 is complicated,
-and Perl has changed over time, causing PCRE2 also to change.
-.P
-Outside a character class, PCRE2 reads the digit and any following digits as a
-decimal number. If the number is less than 10, begins with the digit 8 or 9, or
-if there are at least that many previous capture groups in the expression, the
-entire sequence is taken as a \fIbackreference\fP. A description of how this
-works is given
-.\" HTML <a href="#backreferences">
-.\" </a>
-later,
-.\"
-following the discussion of
-.\" HTML <a href="#group">
-.\" </a>
-parenthesized groups.
-.\"
-Otherwise, up to three octal digits are read to form a character code.
-.P
-Inside a character class, PCRE2 handles \e8 and \e9 as the literal characters
-"8" and "9", and otherwise reads up to three octal digits following the
-backslash, using them to generate a data character. Any subsequent digits stand
-for themselves. For example, outside a character class:
+character code points, and \eg{...} to specify backreferences.
+.
+.
+.SS "Perl rules for non-class backslash 1-9"
+.rs
+.sp
+All the digits that follow the backslash are read as a decimal number. If the
+number is less than 10, begins with the digit 8 or 9, or if there are at least
+that many previous capture groups in the expression, the entire sequence is
+taken as a back reference. Otherwise, up to three octal digits are read to form
+a character code. For example:
 .sp
   \e040   is another way of writing an ASCII space
 .\" JOIN
@@ -542,6 +559,19 @@ for themselves. For example, outside a character class:
 Note that octal values of 100 or greater that are specified using this syntax
 must not be introduced by a leading zero, because no more than three octal
 digits are ever read.
+.
+.
+.SS "Python rules for non_class backslash 1-9"
+.rs
+.sp
+If there are at least three octal digits after the backslash, exactly three are
+read as an octal code point number, but the value must be no greater than
+\e377, even in modes where higher code point values are supported. Any
+subsequent digits stand for themselves. If there are fewer than three octal
+digits, the sequence is taken as a decimal back reference. Thus, for example,
+\e12 is always a back reference, independent of how many captures there are in
+the pattern. An error is generated for a reference to a non-existent capturing
+group.
 .
 .
 .SS "Constraints on character values"
@@ -2149,8 +2179,9 @@ one succeeds. Consider this pattern:
   (?>.*?a)b
 .sp
 It matches "ab" in the subject "aab". The use of the backtracking control verbs
-(*PRUNE) and (*SKIP) also disable this optimization, and there is an option,
-PCRE2_NO_DOTSTAR_ANCHOR, to do so explicitly.
+(*PRUNE) and (*SKIP) also disable this optimization. To do so explicitly,
+either pass the compile option PCRE2_NO_DOTSTAR_ANCHOR, or call
+\fBpcre2_set_optimize()\fP with a PCRE2_DOTSTAR_ANCHOR_OFF directive.
 .P
 When a capture group is repeated, the value captured is the substring that
 matched the final iteration. For example, after
@@ -2242,8 +2273,9 @@ package, and PCRE1 copied it from there. It found its way into Perl at release
 PCRE2 has an optimization that automatically "possessifies" certain simple
 pattern constructs. For example, the sequence A+B is treated as A++B because
 there is no point in backtracking into a sequence of A's when B must follow.
-This feature can be disabled by the PCRE2_NO_AUTOPOSSESS option, or starting
-the pattern with (*NO_AUTO_POSSESS).
+This feature can be disabled by the PCRE2_NO_AUTO_POSSESS option, by calling
+\fBpcre2_set_optimize()\fP with a PCRE2_AUTO_POSSESS_OFF directive, or by
+starting the pattern with (*NO_AUTO_POSSESS).
 .P
 When a pattern contains an unlimited repeat inside a group that can itself be
 repeated an unlimited number of times, the use of an atomic group is the only
@@ -3514,9 +3546,9 @@ minimum length of matching subject, or that a particular character must be
 present. When one of these optimizations bypasses the running of a match, any
 included backtracking verbs will not, of course, be processed. You can suppress
 the start-of-match optimizations by setting the PCRE2_NO_START_OPTIMIZE option
-when calling \fBpcre2_compile()\fP, or by starting the pattern with
-(*NO_START_OPT). There is more discussion of this option in the section
-entitled
+when calling \fBpcre2_compile()\fP, by calling \fBpcre2_set_optimize()\fP with a
+PCRE_START_OPTIMIZE_OFF directive, or by starting the pattern with (*NO_START_OPT).
+There is more discussion of this option in the section entitled
 .\" HTML <a href="pcre2api.html#compiling">
 .\" </a>
 "Compiling a pattern"
@@ -3648,7 +3680,8 @@ attempts starting at "P" and then with an empty string do not get as far as the
 (*MARK) item, but nevertheless do not reset it.
 .P
 If you are interested in (*MARK) values after failed matches, you should
-probably set the PCRE2_NO_START_OPTIMIZE option
+probably either set the PCRE2_NO_START_OPTIMIZE option or call
+\fBpcre2_set_optimize()\fP with a PCRE2_START_OPTIMIZE_OFF directive
 .\" HTML <a href="#nooptimize">
 .\" </a>
 (see above)
@@ -3991,6 +4024,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 04 September 2024
+Last updated: 21 September 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi

@@ -161,7 +161,7 @@ static const unsigned char compile_error_texts[] =
   "using UCP is disabled by the application\0"
   "name is too long in (*MARK), (*PRUNE), (*SKIP), or (*THEN)\0"
   "character code point value in \\u.... sequence is too large\0"
-  "digits missing in \\x{} or \\o{} or \\N{U+}\0"
+  "digits missing after \\x or in \\x{} or \\o{} or \\N{U+}\0"
   "syntax error or number too big in (?(VERSION condition\0"
   /* 80 */
   "internal error: unknown opcode in auto_possessify()\0"
@@ -185,11 +185,12 @@ static const unsigned char compile_error_texts[] =
   "(*alpha_assertion) not recognized\0"
   "script runs require Unicode support, which this version of PCRE2 does not have\0"
   "too many capturing groups (maximum 65535)\0"
-  "UNUSED ERROR\0"
+  "octal digit missing after \\0 (PCRE2_EXTRA_NO_BS0 is set)\0"
   "\\K is not allowed in lookarounds (but see PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK)\0"
   /* 100 */
   "branch too long in variable-length lookbehind assertion\0"
   "compiled pattern would be longer than the limit set by the application\0"
+  "octal value given by \\ddd is greater than \\377 (forbidden by PCRE2_EXTRA_PYTHON_OCTAL)\0"
   ;
 
 /* Match-time and UTF error texts are in the same format. */

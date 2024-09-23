@@ -1443,7 +1443,7 @@ No match
 /[z-\x{100}]/IBi,utf
 ------------------------------------------------------------------
         Bra
-        [Zz-\xff\x{39c}\x{3bc}\x{212b}\x{1e9e}\x{212b}\x{178}\x{100}-\x{101}]
+        [Zz-\xff\x{100}-\x{101}\x{178}\x{39c}\x{3bc}\x{1e9e}\x{212b}]
         Ket
         End
 ------------------------------------------------------------------
@@ -1480,7 +1480,7 @@ No match
 /[z-\x{100}]/IBi,utf
 ------------------------------------------------------------------
         Bra
-        [Zz-\xff\x{39c}\x{3bc}\x{212b}\x{1e9e}\x{212b}\x{178}\x{100}-\x{101}]
+        [Zz-\xff\x{100}-\x{101}\x{178}\x{39c}\x{3bc}\x{1e9e}\x{212b}]
         Ket
         End
 ------------------------------------------------------------------
@@ -1954,5 +1954,34 @@ No match
     ab\x80cde         
  0: ab
  1: ab
+
+# python_octal
+
+/\400/
+Failed: error 151 at offset 4: octal value is greater than \377 in 8-bit non-UTF-8 mode
+
+/abc/substitute_extended
+    abc\=replace=\400
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+
+/\400/python_octal
+Failed: error 202 at offset 4: octal value given by \ddd is greater than \377 (forbidden by PCRE2_EXTRA_PYTHON_OCTAL)
+
+/abc/substitute_extended,python_octal
+    abc\=replace=\400
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+
+/\400/utf
+
+/abc/utf,substitute_extended
+    abc\=replace=\400
+ 1: \x{100}
+
+/\400/utf,python_octal
+Failed: error 202 at offset 4: octal value given by \ddd is greater than \377 (forbidden by PCRE2_EXTRA_PYTHON_OCTAL)
+
+/abc/utf,substitute_extended,python_octal
+    abc\=replace=\400
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
 
 # End of testinput10

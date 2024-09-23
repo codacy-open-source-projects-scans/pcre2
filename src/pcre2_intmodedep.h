@@ -579,6 +579,7 @@ typedef struct pcre2_real_compile_context {
   uint32_t parens_nest_limit;
   uint32_t extra_options;
   uint32_t max_varlookbehind;
+  uint32_t optimization_flags;
 } pcre2_real_compile_context;
 
 /* The real match context structure. */
@@ -646,6 +647,7 @@ typedef struct pcre2_real_code {
   uint16_t top_backref;           /* Highest numbered back reference */
   uint16_t name_entry_size;       /* Size (code units) of table entries */
   uint16_t name_count;            /* Number of name entries in the table */
+  uint32_t optimization_flags;    /* Optimizations enabled at compile time */
 } pcre2_real_code;
 
 /* The real match data structure. Define ovector as large as it can ever
@@ -731,7 +733,7 @@ typedef struct compile_block {
   const uint8_t *cbits;            /* Points to character type table */
   const uint8_t *ctypes;           /* Points to table of type maps */
   PCRE2_UCHAR *start_workspace;    /* The start of working space */
-  PCRE2_UCHAR * start_code;        /* The start of the compiled code */
+  PCRE2_UCHAR *start_code;         /* The start of the compiled code */
   PCRE2_SPTR start_pattern;        /* The start of the pattern */
   PCRE2_SPTR end_pattern;          /* The end of the pattern */
   PCRE2_UCHAR *name_table;         /* The name/number table */

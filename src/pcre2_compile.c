@@ -47,7 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define PSSTART start_pattern  /* Field containing processed string start */
 #define PSEND   end_pattern    /* Field containing processed string end */
 
-#include "pcre2_internal.h"
+#include "pcre2_compile.h"
 
 /* In rare error cases debugging might require calling pcre2_printint(). */
 
@@ -108,19 +108,7 @@ them will be able to (i.e. assume a 64-bit world). */
 #define SIZEOFFSET 2
 #endif
 
-/* Macros for manipulating elements of the parsed pattern vector. */
-
-#define META_CODE(x)   (x & 0xffff0000u)
-#define META_DATA(x)   (x & 0x0000ffffu)
-#define META_DIFF(x,y) ((x-y)>>16)
-
 /* Function definitions to allow mutual recursion */
-
-#ifdef SUPPORT_UNICODE
-static unsigned int
-  add_list_to_class_internal(uint8_t *, PCRE2_UCHAR **, uint32_t, uint32_t,
-    compile_block *, const uint32_t *, unsigned int);
-#endif
 
 static int
   compile_regex(uint32_t, uint32_t, PCRE2_UCHAR **, uint32_t **, int *,
@@ -198,110 +186,6 @@ than INT_MAX to allow for adding in group terminating code units, so that we
 don't have to check them every time. */
 
 #define OFLOW_MAX (INT_MAX - 20)
-
-/* Code values for parsed patterns, which are stored in a vector of 32-bit
-unsigned ints. Values less than META_END are literal data values. The coding
-for identifying the item is in the top 16-bits, leaving 16 bits for the
-additional data that some of them need. The META_CODE, META_DATA, and META_DIFF
-macros are used to manipulate parsed pattern elements.
-
-NOTE: When these definitions are changed, the table of extra lengths for each
-code (meta_extra_lengths, just below) must be updated to remain in step. */
-
-#define META_END              0x80000000u  /* End of pattern */
-
-#define META_ALT              0x80010000u  /* alternation */
-#define META_ATOMIC           0x80020000u  /* atomic group */
-#define META_BACKREF          0x80030000u  /* Back ref */
-#define META_BACKREF_BYNAME   0x80040000u  /* \k'name' */
-#define META_BIGVALUE         0x80050000u  /* Next is a literal > META_END */
-#define META_CALLOUT_NUMBER   0x80060000u  /* (?C with numerical argument */
-#define META_CALLOUT_STRING   0x80070000u  /* (?C with string argument */
-#define META_CAPTURE          0x80080000u  /* Capturing parenthesis */
-#define META_CIRCUMFLEX       0x80090000u  /* ^ metacharacter */
-#define META_CLASS            0x800a0000u  /* start non-empty class */
-#define META_CLASS_EMPTY      0x800b0000u  /* empty class */
-#define META_CLASS_EMPTY_NOT  0x800c0000u  /* negative empty class */
-#define META_CLASS_END        0x800d0000u  /* end of non-empty class */
-#define META_CLASS_NOT        0x800e0000u  /* start non-empty negative class */
-#define META_COND_ASSERT      0x800f0000u  /* (?(?assertion)... */
-#define META_COND_DEFINE      0x80100000u  /* (?(DEFINE)... */
-#define META_COND_NAME        0x80110000u  /* (?(<name>)... */
-#define META_COND_NUMBER      0x80120000u  /* (?(digits)... */
-#define META_COND_RNAME       0x80130000u  /* (?(R&name)... */
-#define META_COND_RNUMBER     0x80140000u  /* (?(Rdigits)... */
-#define META_COND_VERSION     0x80150000u  /* (?(VERSION<op>x.y)... */
-#define META_SCS_NAME         0x80160000u  /* (*scan_substring:(<name>)... */
-#define META_SCS_NUMBER       0x80170000u  /* (*scan_substring:(digits)... */
-#define META_SCS_NEXT_NAME    0x80180000u  /* Next <name> of scan_substring */
-#define META_SCS_NEXT_NUMBER  0x80190000u  /* Next digits of scan_substring */
-#define META_DOLLAR           0x801a0000u  /* $ metacharacter */
-#define META_DOT              0x801b0000u  /* . metacharacter */
-#define META_ESCAPE           0x801c0000u  /* \d and friends */
-#define META_KET              0x801d0000u  /* closing parenthesis */
-#define META_NOCAPTURE        0x801e0000u  /* no capture parens */
-#define META_OPTIONS          0x801f0000u  /* (?i) and friends */
-#define META_POSIX            0x80200000u  /* POSIX class item */
-#define META_POSIX_NEG        0x80210000u  /* negative POSIX class item */
-#define META_RANGE_ESCAPED    0x80220000u  /* range with at least one escape */
-#define META_RANGE_LITERAL    0x80230000u  /* range defined literally */
-#define META_RECURSE          0x80240000u  /* Recursion */
-#define META_RECURSE_BYNAME   0x80250000u  /* (?&name) */
-#define META_SCRIPT_RUN       0x80260000u  /* (*script_run:...) */
-
-/* These must be kept together to make it easy to check that an assertion
-is present where expected in a conditional group. */
-
-#define META_LOOKAHEAD        0x80270000u  /* (?= */
-#define META_LOOKAHEADNOT     0x80280000u  /* (?! */
-#define META_LOOKBEHIND       0x80290000u  /* (?<= */
-#define META_LOOKBEHINDNOT    0x802a0000u  /* (?<! */
-
-/* These cannot be conditions */
-
-#define META_LOOKAHEAD_NA     0x802b0000u  /* (*napla: */
-#define META_LOOKBEHIND_NA    0x802c0000u  /* (*naplb: */
-
-/* These must be kept in this order, with consecutive values, and the _ARG
-versions of COMMIT, PRUNE, SKIP, and THEN immediately after their non-argument
-versions. */
-
-#define META_MARK             0x802d0000u  /* (*MARK) */
-#define META_ACCEPT           0x802e0000u  /* (*ACCEPT) */
-#define META_FAIL             0x802f0000u  /* (*FAIL) */
-#define META_COMMIT           0x80300000u  /* These               */
-#define META_COMMIT_ARG       0x80310000u  /*   pairs             */
-#define META_PRUNE            0x80320000u  /*     must            */
-#define META_PRUNE_ARG        0x80330000u  /*       be            */
-#define META_SKIP             0x80340000u  /*         kept        */
-#define META_SKIP_ARG         0x80350000u  /*           in        */
-#define META_THEN             0x80360000u  /*             this    */
-#define META_THEN_ARG         0x80370000u  /*               order */
-
-/* These must be kept in groups of adjacent 3 values, and all together. */
-
-#define META_ASTERISK         0x80380000u  /* *  */
-#define META_ASTERISK_PLUS    0x80390000u  /* *+ */
-#define META_ASTERISK_QUERY   0x803a0000u  /* *? */
-#define META_PLUS             0x803b0000u  /* +  */
-#define META_PLUS_PLUS        0x803c0000u  /* ++ */
-#define META_PLUS_QUERY       0x803d0000u  /* +? */
-#define META_QUERY            0x803e0000u  /* ?  */
-#define META_QUERY_PLUS       0x803f0000u  /* ?+ */
-#define META_QUERY_QUERY      0x80400000u  /* ?? */
-#define META_MINMAX           0x80410000u  /* {n,m}  repeat */
-#define META_MINMAX_PLUS      0x80420000u  /* {n,m}+ repeat */
-#define META_MINMAX_QUERY     0x80430000u  /* {n,m}? repeat */
-
-#define META_FIRST_QUANTIFIER META_ASTERISK
-#define META_LAST_QUANTIFIER  META_MINMAX_QUERY
-
-/* This is a special "meta code" that is used only to distinguish (*asr: from
-(*sr: in the table of alphabetic assertions. It is never stored in the parsed
-pattern because (*asr: is turned into (*sr:(*atomic: at that stage. There is
-therefore no need for it to have a length entry, so use a high value. */
-
-#define META_ATOMIC_SCRIPT_RUN 0x8fff0000u
 
 /* Table of extra lengths for each of the meta codes. Must be kept in step with
 the definitions above. For some items these values are a basic length to which
@@ -517,44 +401,44 @@ in UTF-8 mode. It runs from '0' to 'z'. */
 #define UPPER_CASE(c)       (c-32)
 
 static const short int escapes[] = {
-     0,                       0,
-     0,                       0,
-     0,                       0,
-     0,                       0,
-     0,                       0,
-     CHAR_COLON,              CHAR_SEMICOLON,
-     CHAR_LESS_THAN_SIGN,     CHAR_EQUALS_SIGN,
-     CHAR_GREATER_THAN_SIGN,  CHAR_QUESTION_MARK,
-     CHAR_COMMERCIAL_AT,      -ESC_A,
-     -ESC_B,                  -ESC_C,
-     -ESC_D,                  -ESC_E,
-     0,                       -ESC_G,
-     -ESC_H,                  0,
-     0,                       -ESC_K,
-     0,                       0,
-     -ESC_N,                  0,
-     -ESC_P,                  -ESC_Q,
-     -ESC_R,                  -ESC_S,
-     0,                       0,
-     -ESC_V,                  -ESC_W,
-     -ESC_X,                  0,
-     -ESC_Z,                  CHAR_LEFT_SQUARE_BRACKET,
-     CHAR_BACKSLASH,          CHAR_RIGHT_SQUARE_BRACKET,
-     CHAR_CIRCUMFLEX_ACCENT,  CHAR_UNDERSCORE,
-     CHAR_GRAVE_ACCENT,       CHAR_BEL,
-     -ESC_b,                  0,
-     -ESC_d,                  CHAR_ESC,
-     CHAR_FF,                 0,
-     -ESC_h,                  0,
-     0,                       -ESC_k,
-     0,                       0,
-     CHAR_LF,                 0,
-     -ESC_p,                  0,
-     CHAR_CR,                 -ESC_s,
-     CHAR_HT,                 0,
-     -ESC_v,                  -ESC_w,
-     0,                       0,
-     -ESC_z
+    /* 0 */ 0,                       /* 1 */ 0,
+    /* 2 */ 0,                       /* 3 */ 0,
+    /* 4 */ 0,                       /* 5 */ 0,
+    /* 6 */ 0,                       /* 7 */ 0,
+    /* 8 */ 0,                       /* 9 */ 0,
+    /* : */ CHAR_COLON,              /* ; */ CHAR_SEMICOLON,
+    /* < */ CHAR_LESS_THAN_SIGN,     /* = */ CHAR_EQUALS_SIGN,
+    /* > */ CHAR_GREATER_THAN_SIGN,  /* ? */ CHAR_QUESTION_MARK,
+    /* @ */ CHAR_COMMERCIAL_AT,      /* A */ -ESC_A,
+    /* B */ -ESC_B,                  /* C */ -ESC_C,
+    /* D */ -ESC_D,                  /* E */ -ESC_E,
+    /* F */ 0,                       /* G */ -ESC_G,
+    /* H */ -ESC_H,                  /* I */ 0,
+    /* J */ 0,                       /* K */ -ESC_K,
+    /* L */ 0,                       /* M */ 0,
+    /* N */ -ESC_N,                  /* O */ 0,
+    /* P */ -ESC_P,                  /* Q */ -ESC_Q,
+    /* R */ -ESC_R,                  /* S */ -ESC_S,
+    /* T */ 0,                       /* U */ 0,
+    /* V */ -ESC_V,                  /* W */ -ESC_W,
+    /* X */ -ESC_X,                  /* Y */ 0,
+    /* Z */ -ESC_Z,                  /* [ */ CHAR_LEFT_SQUARE_BRACKET,
+    /* \ */ CHAR_BACKSLASH,          /* ] */ CHAR_RIGHT_SQUARE_BRACKET,
+    /* ^ */ CHAR_CIRCUMFLEX_ACCENT,  /* _ */ CHAR_UNDERSCORE,
+    /* ` */ CHAR_GRAVE_ACCENT,       /* a */ CHAR_BEL,
+    /* b */ -ESC_b,                  /* c */ 0,
+    /* d */ -ESC_d,                  /* e */ CHAR_ESC,
+    /* f */ CHAR_FF,                 /* g */ 0,
+    /* h */ -ESC_h,                  /* i */ 0,
+    /* j */ 0,                       /* k */ -ESC_k,
+    /* l */ 0,                       /* m */ 0,
+    /* n */ CHAR_LF,                 /* o */ 0,
+    /* p */ -ESC_p,                  /* q */ 0,
+    /* r */ CHAR_CR,                 /* s */ -ESC_s,
+    /* t */ CHAR_HT,                 /* u */ 0,
+    /* v */ -ESC_v,                  /* w */ -ESC_w,
+    /* x */ 0,                       /* y */ 0,
+    /* z */ -ESC_z
 };
 
 #else
@@ -801,27 +685,7 @@ are allowed. */
     PCRE2_EXTRA_ESCAPED_CR_IS_LF|PCRE2_EXTRA_ALT_BSUX| \
     PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK|PCRE2_EXTRA_ASCII_BSD| \
     PCRE2_EXTRA_ASCII_BSS|PCRE2_EXTRA_ASCII_BSW|PCRE2_EXTRA_ASCII_POSIX| \
-    PCRE2_EXTRA_ASCII_DIGIT)
-
-/* Compile time error code numbers. They are given names so that they can more
-easily be tracked. When a new number is added, the tables called eint1 and
-eint2 in pcre2posix.c may need to be updated, and a new error text must be
-added to compile_error_texts in pcre2_error.c. Also, the error codes in
-pcre2.h.in must be updated - their values are exactly 100 greater than these
-values. */
-
-enum { ERR0 = COMPILE_ERROR_BASE,
-       ERR1,  ERR2,  ERR3,  ERR4,  ERR5,  ERR6,  ERR7,  ERR8,  ERR9,  ERR10,
-       ERR11, ERR12, ERR13, ERR14, ERR15, ERR16, ERR17, ERR18, ERR19, ERR20,
-       ERR21, ERR22, ERR23, ERR24, ERR25, ERR26, ERR27, ERR28, ERR29, ERR30,
-       ERR31, ERR32, ERR33, ERR34, ERR35, ERR36, ERR37, ERR38, ERR39, ERR40,
-       ERR41, ERR42, ERR43, ERR44, ERR45, ERR46, ERR47, ERR48, ERR49, ERR50,
-       ERR51, ERR52, ERR53, ERR54, ERR55, ERR56, ERR57, ERR58, ERR59, ERR60,
-       ERR61, ERR62, ERR63, ERR64, ERR65, ERR66, ERR67, ERR68, ERR69, ERR70,
-       ERR71, ERR72, ERR73, ERR74, ERR75, ERR76, ERR77, ERR78, ERR79, ERR80,
-       ERR81, ERR82, ERR83, ERR84, ERR85, ERR86, ERR87, ERR88, ERR89, ERR90,
-       ERR91, ERR92, ERR93, ERR94, ERR95, ERR96, ERR97, ERR98, ERR99, ERR100,
-       ERR101 };
+    PCRE2_EXTRA_ASCII_DIGIT|PCRE2_EXTRA_PYTHON_OCTAL|PCRE2_EXTRA_NO_BS0)
 
 /* This is a table of start-of-pattern options such as (*UTF) and settings such
 as (*LIMIT_MATCH=nnnn) and (*CRLF). For completeness and backward
@@ -834,7 +698,8 @@ enum { PSO_OPT,     /* Value is an option bit */
        PSO_BSR,     /* Value is a \R type */
        PSO_LIMH,    /* Read integer value for heap limit */
        PSO_LIMM,    /* Read integer value for match limit */
-       PSO_LIMD     /* Read integer value for depth limit */
+       PSO_LIMD,    /* Read integer value for depth limit */
+       PSO_OPTMZ    /* Value is an optimization bit */
      };
 
 typedef struct pso {
@@ -852,10 +717,10 @@ static const pso pso_list[] = {
   { STRING_UCP_RIGHTPAR,                4, PSO_OPT, PCRE2_UCP },
   { STRING_NOTEMPTY_RIGHTPAR,           9, PSO_FLG, PCRE2_NOTEMPTY_SET },
   { STRING_NOTEMPTY_ATSTART_RIGHTPAR,  17, PSO_FLG, PCRE2_NE_ATST_SET },
-  { STRING_NO_AUTO_POSSESS_RIGHTPAR,   16, PSO_OPT, PCRE2_NO_AUTO_POSSESS },
-  { STRING_NO_DOTSTAR_ANCHOR_RIGHTPAR, 18, PSO_OPT, PCRE2_NO_DOTSTAR_ANCHOR },
+  { STRING_NO_AUTO_POSSESS_RIGHTPAR,   16, PSO_OPTMZ, PCRE2_OPTIM_AUTO_POSSESS },
+  { STRING_NO_DOTSTAR_ANCHOR_RIGHTPAR, 18, PSO_OPTMZ, PCRE2_OPTIM_DOTSTAR_ANCHOR },
   { STRING_NO_JIT_RIGHTPAR,             7, PSO_FLG, PCRE2_NOJIT },
-  { STRING_NO_START_OPT_RIGHTPAR,      13, PSO_OPT, PCRE2_NO_START_OPTIMIZE },
+  { STRING_NO_START_OPT_RIGHTPAR,      13, PSO_OPTMZ, PCRE2_OPTIM_START_OPTIMIZE },
   { STRING_LIMIT_HEAP_EQ,              11, PSO_LIMH, 0 },
   { STRING_LIMIT_MATCH_EQ,             12, PSO_LIMM, 0 },
   { STRING_LIMIT_DEPTH_EQ,             12, PSO_LIMD, 0 },
@@ -1349,7 +1214,10 @@ Arguments:
   ptrptr      points to the character pointer variable
   ptrend      points to the end of the input string
   allow_sign  if < 0, sign not allowed; if >= 0, sign is relative to this
-  max_value   the largest number allowed
+  max_value   the largest number allowed;
+              you must not pass a value for max_value larger than
+              INT_MAX/10 - 1 because this function relies on max_value to
+              avoid integer overflow
   max_error   the error to give for an over-large number
   intptr      where to put the result
   errcodeptr  where to put an error code
@@ -1367,6 +1235,8 @@ int sign = 0;
 uint32_t n = 0;
 PCRE2_SPTR ptr = *ptrptr;
 BOOL yield = FALSE;
+
+PCRE2_ASSERT(max_value <= INT_MAX/10 - 1);
 
 *errorcodeptr = 0;
 
@@ -1392,6 +1262,7 @@ while (ptr < ptrend && IS_DIGIT(*ptr))
   if (n > max_value)
     {
     *errorcodeptr = max_error;
+    while (ptr < ptrend && IS_DIGIT(*ptr)) ptr++;
     goto EXIT;
     }
   }
@@ -1492,7 +1363,7 @@ else
   if (pp >= ptrend || *pp != CHAR_RIGHT_CURLY_BRACKET) return FALSE;
   }
 
-/* Now process the quantifier for real. We know it must be {n} or (n,} or {,m}
+/* Now process the quantifier for real. We know it must be {n} or {n,} or {,m}
 or {n,m}. The only error that read_number() can return is for a number that is
 too big. If *errorcodeptr is returned as zero it means no number was found. */
 
@@ -1576,7 +1447,8 @@ Arguments:
   errorcodeptr   points to the errorcode variable (containing zero)
   options        the current options bits
   xoptions       the current extra options bits
-  isclassorsub   TRUE if in a character class or called from pcre2_substitute()
+  bracount       the number of capturing parentheses encountered so far
+  isclass        TRUE if in a character class
   cb             compile data block or NULL when called from pcre2_substitute()
 
 Returns:         zero => a data character
@@ -1587,8 +1459,8 @@ Returns:         zero => a data character
 
 int
 PRIV(check_escape)(PCRE2_SPTR *ptrptr, PCRE2_SPTR ptrend, uint32_t *chptr,
-  int *errorcodeptr, uint32_t options, uint32_t xoptions, BOOL isclassorsub,
-  compile_block *cb)
+  int *errorcodeptr, uint32_t options, uint32_t xoptions, uint32_t bracount,
+  BOOL isclass, compile_block *cb)
 {
 BOOL utf = (options & PCRE2_UTF) != 0;
 BOOL alt_bsux =
@@ -1698,8 +1570,8 @@ else
 
   if (cb == NULL)
     {
-    if (c < CHAR_0 || 
-       (c > CHAR_9 && (c != CHAR_c && c != CHAR_o && c != CHAR_x)))
+    if (c < CHAR_0 ||
+       (c > CHAR_9 && (c != CHAR_c && c != CHAR_o && c != CHAR_x && c != CHAR_g)))
       {
       *errorcodeptr = ERR3;
       return 0;
@@ -1814,14 +1686,50 @@ else
 
     Summary: Return a negative number for a numerical back reference, ESC_k for
     a named back reference, and ESC_g for a named or numbered subroutine call.
+
+    The above describes the \g behaviour inside patterns. Inside replacement
+    strings (pcre2_substitute) we support only \g<nameornum> for Python
+    compatibility. Return ESG_g for the named case, and -num for the
+    numbered case.
     */
 
     case CHAR_g:
-    if (isclassorsub) break;
+    if (isclass) break;
 
     if (ptr >= ptrend)
       {
       *errorcodeptr = ERR57;
+      break;
+      }
+
+    if (cb == NULL)
+      {
+      PCRE2_SPTR p;
+      /* Substitution strings */
+      if (*ptr != CHAR_LESS_THAN_SIGN)
+        {
+        *errorcodeptr = ERR57;
+        break;
+        }
+
+      p = ptr + 1;
+
+      if (!read_number(&p, ptrend, -1, MAX_GROUP_NUMBER, ERR61, &s,
+          errorcodeptr))
+        {
+        if (*errorcodeptr == 0) escape = ESC_g;  /* No number found */
+        break;
+        }
+
+      if (p >= ptrend || *p != CHAR_GREATER_THAN_SIGN)
+        {
+        /* not advancing ptr; report error at the \g character */
+        *errorcodeptr = ERR57;
+        break;
+        }
+
+      ptr = p + 1;
+      escape = -s;
       break;
       }
 
@@ -1839,7 +1747,7 @@ else
       PCRE2_SPTR p = ptr + 1;
 
       while (p < ptrend && (*p == CHAR_SPACE || *p == CHAR_HT)) p++;
-      if (!read_number(&p, ptrend, cb->bracount, MAX_GROUP_NUMBER, ERR61, &s,
+      if (!read_number(&p, ptrend, bracount, MAX_GROUP_NUMBER, ERR61, &s,
           errorcodeptr))
         {
         if (*errorcodeptr == 0) escape = ESC_k;  /* No number found */
@@ -1849,6 +1757,7 @@ else
 
       if (p >= ptrend || *p != CHAR_RIGHT_CURLY_BRACKET)
         {
+        /* not advancing ptr; report error at the \g character */
         *errorcodeptr = ERR57;
         break;
         }
@@ -1859,7 +1768,7 @@ else
 
     else
       {
-      if (!read_number(&ptr, ptrend, cb->bracount, MAX_GROUP_NUMBER, ERR61, &s,
+      if (!read_number(&ptr, ptrend, bracount, MAX_GROUP_NUMBER, ERR61, &s,
           errorcodeptr))
         {
         if (*errorcodeptr == 0) *errorcodeptr = ERR57;  /* No number found */
@@ -1885,7 +1794,16 @@ else
     number is less than 10, or if there are that many previous extracting left
     brackets, it is a back reference. Otherwise, up to three octal digits are
     read to form an escaped character code. Thus \123 is likely to be octal 123
-    (cf \0123, which is octal 012 followed by the literal 3).
+    (cf \0123, which is octal 012 followed by the literal 3). This is the "Perl
+    style" of handling ambiguous octal/backrefences such as \12.
+
+    There is an alternative disambiguation strategy, selected by
+    PCRE2_EXTRA_PYTHON_OCTAL, which follows Python's behaviour. An octal must
+    have either a leading zero, or exactly three octal digits; otherwise it's
+    a backreference. The disambiguation is stable, and does not depend on how
+    many capture groups are defined (it's simply an invalid backreference if
+    there is no corresponding capture group). Additionally, octal values above
+    \377 (\xff) are rejected.
 
     Inside a character class, \ followed by a digit is always either a literal
     8 or 9 or an octal number. */
@@ -1893,24 +1811,60 @@ else
     case CHAR_1: case CHAR_2: case CHAR_3: case CHAR_4: case CHAR_5:
     case CHAR_6: case CHAR_7: case CHAR_8: case CHAR_9:
 
-    if (!isclassorsub)
+    if (isclass)
       {
+      /* Fall through to octal handling; never a backreference inside a class. */
+      }
+    else if ((xoptions & PCRE2_EXTRA_PYTHON_OCTAL) != 0)
+      {
+      /* Python-style disambiguation. */
+      if (ptr[-1] <= CHAR_7 && ptr + 1 < ptrend && ptr[0] >= CHAR_0 &&
+          ptr[0] <= CHAR_7 && ptr[1] >= CHAR_0 && ptr[1] <= CHAR_7)
+        {
+        /* We peeked a three-digit octal, so fall through */
+        }
+      else
+        {
+        /* We are at a digit, so the only possible error from read_number() is
+        a number that is too large. */
+        ptr--;   /* Back to the digit */
+
+        if (!read_number(&ptr, ptrend, -1, MAX_GROUP_NUMBER, 0, &s, errorcodeptr))
+          {
+          *errorcodeptr = ERR61;
+          break;
+          }
+
+        escape = -s;
+        break;
+        }
+      }
+    else
+      {
+      /* Perl-style disambiguation. */
       oldptr = ptr;
       ptr--;   /* Back to the digit */
 
       /* As we know we are at a digit, the only possible error from
-      read_number() is a number that is too large to be a group number. In this
-      case we fall through handle this as not a group reference. If we have
-      read a small enough number, check for a back reference.
+      read_number() is a number that is too large to be a group number. Because
+      that number might be still valid if read as an octal, errorcodeptr is not
+      set on failure and therefore a bogus value of INT_MAX is set instead that
+      will be used later to properly set the error, if not falling through. */
 
-      \1 to \9 are always back references. \8x and \9x are too; \1x to \7x
+      if (!read_number(&ptr, ptrend, -1, MAX_GROUP_NUMBER, 0, &s, errorcodeptr))
+        s = INT_MAX;
+
+      /* \1 to \9 are always back references. \8x and \9x are too; \1x to \7x
       are octal escapes if there are not that many previous captures. */
 
-      if (read_number(&ptr, ptrend, -1, INT_MAX/10 - 1, 0, &s, errorcodeptr) &&
-          (s < 10 || oldptr[-1] >= CHAR_8 || s <= (int)cb->bracount))
+      if (s < 10 || c >= CHAR_8 || (unsigned)s <= bracount)
         {
-        if (s > (int)MAX_GROUP_NUMBER) *errorcodeptr = ERR61;
-          else escape = -s;     /* Indicates a back reference */
+        /* s > MAX_GROUP_NUMBER should not be possible because of read_number(),
+        but we keep it just to be safe and because it will also catch the bogus
+        value set on failure of that function. */
+
+        if ((unsigned)s > MAX_GROUP_NUMBER) *errorcodeptr = ERR61;
+        else escape = -s;     /* Indicates a back reference */
         break;
         }
 
@@ -1929,16 +1883,26 @@ else
     /* \0 always starts an octal number, but we may drop through to here with a
     larger first octal digit. The original code used just to take the least
     significant 8 bits of octal numbers (I think this is what early Perls used
-    to do). Nowadays we allow for larger numbers in UTF-8 mode and 16-bit mode,
+    to do). Nowadays we allow for larger numbers in UTF-8 mode and 16/32-bit mode,
     but no more than 3 octal digits. */
 
     case CHAR_0:
     c -= CHAR_0;
     while(i++ < 2 && ptr < ptrend && *ptr >= CHAR_0 && *ptr <= CHAR_7)
         c = c * 8 + *ptr++ - CHAR_0;
+    if (c > 0xff)
+      {
+      if ((xoptions & PCRE2_EXTRA_PYTHON_OCTAL) != 0) *errorcodeptr = ERR102;
 #if PCRE2_CODE_UNIT_WIDTH == 8
-    if (!utf && c > 0xff) *errorcodeptr = ERR51;
+      else if (!utf) *errorcodeptr = ERR51;
 #endif
+      }
+
+    /* PCRE2_EXTRA_NO_BS0 disables the NUL escape '\0' but doesn't affect
+    two- or three-character octal escapes \00 and \000, nor \x00. */
+
+    if ((xoptions & PCRE2_EXTRA_NO_BS0) != 0 && c == 0 && i == 1)
+        *errorcodeptr = ERR98;
     break;
 
     /* \o is a relatively new Perl feature, supporting a more general way of
@@ -2093,10 +2057,29 @@ else
 
       else
         {
-        c = 0;
-        if (ptr >= ptrend || (cc = XDIGIT(*ptr)) == 0xff) break;  /* Not a hex digit */
+        /* Perl has the surprising/broken behaviour that \x without following
+        hex digits is treated as an escape for NUL. Their source code laments
+        this but keeps it for backwards compatibility. A warning is printed
+        when "use warnings" is enabled, and it's forbidden when "use strict"
+        is enabled. Because we don't have warnings, we simply forbid it. */
+        if (ptr >= ptrend || (cc = XDIGIT(*ptr)) == 0xff)
+          {
+          /* Not a hex digit */
+          *errorcodeptr = ERR78;
+          break;
+          }
         ptr++;
         c = cc;
+
+        /* With "use re 'strict'" Perl actually requires exactly two digits (error
+        for both \xA and \xAAA). This seems overly strict, and there seems
+        little incentive to align with that, given the backwards-compatibility
+        cost.
+
+        For comparison, note that other engines disagree. For example:
+          - Java allows 1 or 2 hex digits. Error if 0 digits. No error if >2 digits
+          - .NET requires 2 hex digits. Error if 0, 1 digits. No error if >2 digits.
+        */
         if (ptr >= ptrend || (cc = XDIGIT(*ptr)) == 0xff) break;  /* Not a hex digit */
         ptr++;
         c = (c << 4) | cc;
@@ -2553,6 +2536,9 @@ if (ptr >= ptrend)                 /* No characters in name */
 
 *nameptr = ptr;
 *offsetptr = (PCRE2_SIZE)(ptr - cb->start_pattern);
+
+/* If this logic were ever to change, the matching function in pcre2_substitute.c
+ought to be updated to match. */
 
 /* In UTF mode, a group name may contain letters and decimal digits as defined
 by Unicode properties, and underscores, but must not start with a digit. */
@@ -3076,7 +3062,7 @@ while (ptr < ptrend)
       if ((options & PCRE2_ALT_VERBNAMES) != 0)
         {
         escape = PRIV(check_escape)(&ptr, ptrend, &c, &errorcode, options,
-          xoptions, FALSE, cb);
+          xoptions, cb->bracount, FALSE, cb);
         if (errorcode != 0) goto FAILED;
         }
       else escape = 0;   /* Treat all as literal */
@@ -3276,7 +3262,7 @@ while (ptr < ptrend)
     case CHAR_BACKSLASH:
     tempptr = ptr;
     escape = PRIV(check_escape)(&ptr, ptrend, &c, &errorcode, options,
-      xoptions, FALSE, cb);
+      xoptions, cb->bracount, FALSE, cb);
     if (errorcode != 0)
       {
       ESCAPE_FAILED:
@@ -3844,7 +3830,7 @@ while (ptr < ptrend)
         {
         tempptr = ptr;
         escape = PRIV(check_escape)(&ptr, ptrend, &c, &errorcode, options,
-          xoptions, TRUE, cb);
+          xoptions, cb->bracount, TRUE, cb);
 
         if (errorcode != 0)
           {
@@ -5264,86 +5250,6 @@ for (;;)
 
 
 
-#ifdef SUPPORT_UNICODE
-/*************************************************
-*           Get othercase range                  *
-*************************************************/
-
-/* This function is passed the start and end of a class range in UCP mode. For
-single characters the range may be just one character long. The function
-searches up the characters, looking for ranges of characters in the "other"
-case. Each call returns the next one, updating the start address. A character
-with multiple other cases is returned on its own with a special return value.
-
-Arguments:
-  cptr        points to starting character value; updated
-  d           end value
-  ocptr       where to put start of othercase range
-  odptr       where to put end of othercase range
-  restricted  TRUE if caseless restriction applies
-
-Yield:        -1 when no more
-               0 when a range is returned
-              >0 the CASESET offset for char with multiple other cases;
-                 for this return, *ocptr contains the original
-*/
-
-static int
-get_othercase_range(uint32_t *cptr, uint32_t d, uint32_t *ocptr,
-  uint32_t *odptr, BOOL restricted)
-{
-uint32_t c, othercase, next;
-unsigned int co;
-
-/* Find the first character that has an other case. If it has multiple other
-cases, return its case offset value. When CASELESS_RESTRICT is set, ignore the
-multi-case entries that begin with ASCII values. In 32-bit mode, a value
-greater than the Unicode maximum ends the range. */
-
-for (c = *cptr; c <= d; c++)
-  {
-#if PCRE2_CODE_UNIT_WIDTH == 32
-  if (c > MAX_UTF_CODE_POINT) return -1;
-#endif
-  if ((co = UCD_CASESET(c)) != 0 &&
-      (!restricted || PRIV(ucd_caseless_sets)[co] > 127))
-    {
-    *ocptr = c++;   /* Character that has the set */
-    *cptr = c;      /* Rest of input range */
-    return (int)co;
-    }
-
-   /* This is not a valid multiple-case character. Check that the single other
-   case is different to the original. We don't need to check "restricted" here
-   because the non-ASCII characters with multiple cases that include an ASCII
-   character don't have a different "othercase". */
-
-  if ((othercase = UCD_OTHERCASE(c)) != c) break;
-  }
-
-if (c > d) return -1;  /* Reached end of range */
-
-/* Found a character that has a single other case. Search for the end of the
-range, which is either the end of the input range, or a character that has zero
-or more than one other cases. */
-
-*ocptr = othercase;
-next = othercase + 1;
-
-for (++c; c <= d; c++)
-  {
-  if ((co = UCD_CASESET(c)) != 0 || UCD_OTHERCASE(c) != next) break;
-  next++;
-  }
-
-*odptr = next - 1;     /* End of othercase range */
-*cptr = c;             /* Rest of input range */
-return 0;
-}
-#endif  /* SUPPORT_UNICODE */
-
-
-
 /*************************************************
 * Add a character or range to a class (internal) *
 *************************************************/
@@ -5370,8 +5276,7 @@ Returns:        the number of < 256 characters added
 
 static unsigned int
 add_to_class_internal(uint8_t *classbits, PCRE2_UCHAR **uchardptr,
-  uint32_t options, uint32_t xoptions, compile_block *cb, uint32_t start,
-  uint32_t end)
+  uint32_t options, compile_block *cb, uint32_t start, uint32_t end)
 {
 uint32_t c;
 uint32_t classbits_end = (end <= 0xff ? end : 0xff);
@@ -5384,55 +5289,15 @@ restriction is in force). Sometimes we can just extend the original range. */
 
 if ((options & PCRE2_CASELESS) != 0)
   {
-#ifdef SUPPORT_UNICODE
-  if ((options & (PCRE2_UTF|PCRE2_UCP)) != 0)
-    {
-    int rc;
-    uint32_t oc, od;
-
-    options &= ~PCRE2_CASELESS;   /* Remove for recursive calls */
-    c = start;
-
-    while ((rc = get_othercase_range(&c, end, &oc, &od,
-             (xoptions & PCRE2_EXTRA_CASELESS_RESTRICT) != 0)) >= 0)
-      {
-      /* Handle a single character that has more than one other case. */
-
-      if (rc > 0) n8 += add_list_to_class_internal(classbits, uchardptr,
-        options, xoptions, cb, PRIV(ucd_caseless_sets) + rc, oc);
-
-      /* Do nothing if the other case range is within the original range. */
-
-      else if (oc >= cb->class_range_start && od <= cb->class_range_end)
-        continue;
-
-      /* Extend the original range if there is overlap, noting that if oc < c,
-      we can't have od > end because a subrange is always shorter than the
-      basic range. Otherwise, use a recursive call to add the additional range.
-      */
-
-      else if (oc < start && od >= start - 1) start = oc; /* Extend downwards */
-      else if (od > end && oc <= end + 1)
-        {
-        end = od;       /* Extend upwards */
-        if (end > classbits_end) classbits_end = (end <= 0xff ? end : 0xff);
-        }
-      else n8 += add_to_class_internal(classbits, uchardptr, options, xoptions,
-        cb, oc, od);
-      }
-    }
-  else
-#else
-  (void)xoptions;   /* Avoid compiler warning */
+#ifndef SUPPORT_UNICODE
+  if ((options & (PCRE2_UTF|PCRE2_UCP)) == 0)
 #endif  /* SUPPORT_UNICODE */
-
-  /* Not UTF mode */
-
-  for (c = start; c <= classbits_end; c++)
-    {
-    SETBIT(classbits, cb->fcc[c]);
-    n8++;
-    }
+    /* Not UTF mode */
+    for (c = start; c <= classbits_end; c++)
+      {
+      SETBIT(classbits, cb->fcc[c]);
+      n8++;
+      }
   }
 
 /* Now handle the originally supplied range. Adjust the final value according
@@ -5507,53 +5372,6 @@ return n8;    /* Number of 8-bit characters */
 
 
 
-#ifdef SUPPORT_UNICODE
-/*************************************************
-* Add a list of characters to a class (internal) *
-*************************************************/
-
-/* This function is used for adding a list of case-equivalent characters to a
-class when in UTF mode. This function is called only from within
-add_to_class_internal(), with which it is mutually recursive.
-
-Arguments:
-  classbits     the bit map for characters < 256
-  uchardptr     points to the pointer for extra data
-  options       the options bits
-  xoptions      the extra options bits
-  cb            contains pointers to tables etc.
-  p             points to row of 32-bit values, terminated by NOTACHAR
-  except        character to omit; this is used when adding lists of
-                  case-equivalent characters to avoid including the one we
-                  already know about
-
-Returns:        the number of < 256 characters added
-                the pointer to extra data is updated
-*/
-
-static unsigned int
-add_list_to_class_internal(uint8_t *classbits, PCRE2_UCHAR **uchardptr,
-  uint32_t options, uint32_t xoptions, compile_block *cb, const uint32_t *p,
-  unsigned int except)
-{
-unsigned int n8 = 0;
-while (p[0] < NOTACHAR)
-  {
-  unsigned int n = 0;
-  if (p[0] != except)
-    {
-    while(p[n+1] == p[0] + n + 1) n++;
-    n8 += add_to_class_internal(classbits, uchardptr, options, xoptions, cb,
-      p[0], p[n]);
-    }
-  p += n + 1;
-  }
-return n8;
-}
-#endif
-
-
-
 /*************************************************
 *   External entry point for add range to class  *
 *************************************************/
@@ -5576,12 +5394,11 @@ Returns:        the number of < 256 characters added
 
 static unsigned int
 add_to_class(uint8_t *classbits, PCRE2_UCHAR **uchardptr, uint32_t options,
-  uint32_t xoptions, compile_block *cb, uint32_t start, uint32_t end)
+  compile_block *cb, uint32_t start, uint32_t end)
 {
 cb->class_range_start = start;
 cb->class_range_end = end;
-return add_to_class_internal(classbits, uchardptr, options, xoptions, cb,
-  start, end);
+return add_to_class_internal(classbits, uchardptr, options, cb, start, end);
 }
 
 
@@ -5611,8 +5428,8 @@ Returns:        the number of < 256 characters added
 */
 
 static unsigned int
-add_list_to_class(uint8_t *classbits, PCRE2_UCHAR **uchardptr, uint32_t options,
-  uint32_t xoptions, compile_block *cb, const uint32_t *p, unsigned int except)
+add_list_to_class(uint8_t *classbits, PCRE2_UCHAR **uchardptr,
+  uint32_t options, compile_block *cb, const uint32_t *p, unsigned int except)
 {
 unsigned int n8 = 0;
 while (p[0] < NOTACHAR)
@@ -5623,8 +5440,7 @@ while (p[0] < NOTACHAR)
     while(p[n+1] == p[0] + n + 1) n++;
     cb->class_range_start = p[0];
     cb->class_range_end = p[n];
-    n8 += add_to_class_internal(classbits, uchardptr, options, xoptions, cb,
-      p[0], p[n]);
+    n8 += add_to_class_internal(classbits, uchardptr, options, cb, p[0], p[n]);
     }
   p += n + 1;
   }
@@ -5654,16 +5470,16 @@ Returns:        the number of < 256 characters added
 
 static unsigned int
 add_not_list_to_class(uint8_t *classbits, PCRE2_UCHAR **uchardptr,
-  uint32_t options, uint32_t xoptions, compile_block *cb, const uint32_t *p)
+  uint32_t options, compile_block *cb, const uint32_t *p)
 {
 BOOL utf = (options & PCRE2_UTF) != 0;
 unsigned int n8 = 0;
 if (p[0] > 0)
-  n8 += add_to_class(classbits, uchardptr, options, xoptions, cb, 0, p[0] - 1);
+  n8 += add_to_class(classbits, uchardptr, options, cb, 0, p[0] - 1);
 while (p[0] < NOTACHAR)
   {
   while (p[1] == p[0] + 1) p++;
-  n8 += add_to_class(classbits, uchardptr, options, xoptions, cb, p[0] + 1,
+  n8 += add_to_class(classbits, uchardptr, options, cb, p[0] + 1,
     (p[1] == NOTACHAR) ? (utf ? 0x10ffffu : 0xffffffffu) : p[1] - 1);
   p++;
   }
@@ -5832,6 +5648,8 @@ PCRE2_UCHAR *class_uchardata;
 #ifdef SUPPORT_WIDE_CHARS
 BOOL xclass;
 PCRE2_UCHAR *class_uchardata_base;
+uint32_t* class_ranges;
+size_t class_ranges_size;
 #endif
 
 /* Set up the default and non-default settings for greediness */
@@ -6144,6 +5962,22 @@ for (;; pptr++)
     might match. */
 
 #ifdef SUPPORT_WIDE_CHARS
+#if PCRE2_CODE_UNIT_WIDTH == 8
+    class_ranges = NULL;
+    class_ranges_size = 0;
+
+    if (utf)
+#endif
+      {
+      class_ranges = PRIV(optimize_class)(pptr, options, &class_ranges_size, cb);
+
+      if (class_ranges == NULL && class_ranges_size != 0)
+        {
+        *errorcodeptr = ERR21;
+        return 0;
+        }
+      }
+
     xclass = FALSE;
     class_uchardata = code + LINK_SIZE + 2;   /* For XCLASS items */
     class_uchardata_base = class_uchardata;   /* Save the start */
@@ -6358,24 +6192,24 @@ for (;; pptr++)
 
           case ESC_h:
           (void)add_list_to_class(classbits, &class_uchardata,
-            options & ~PCRE2_CASELESS, xoptions, cb, PRIV(hspace_list),
+            options & ~PCRE2_CASELESS, cb, PRIV(hspace_list),
               NOTACHAR);
           break;
 
           case ESC_H:
           (void)add_not_list_to_class(classbits, &class_uchardata,
-            options & ~PCRE2_CASELESS, xoptions, cb, PRIV(hspace_list));
+            options & ~PCRE2_CASELESS, cb, PRIV(hspace_list));
           break;
 
           case ESC_v:
           (void)add_list_to_class(classbits, &class_uchardata,
-            options & ~PCRE2_CASELESS, xoptions, cb, PRIV(vspace_list),
+            options & ~PCRE2_CASELESS, cb, PRIV(vspace_list),
               NOTACHAR);
           break;
 
           case ESC_V:
           (void)add_not_list_to_class(classbits, &class_uchardata,
-            options & ~PCRE2_CASELESS, xoptions, cb, PRIV(vspace_list));
+            options & ~PCRE2_CASELESS, cb, PRIV(vspace_list));
           break;
 
           /* If Unicode is not supported, \P and \p are not allowed and are
@@ -6443,6 +6277,11 @@ for (;; pptr++)
 
           if (d == CHAR_CR || d == CHAR_NL) cb->external_flags |= PCRE2_HASCRORLF;
 
+#ifdef SUPPORT_WIDE_CHARS
+          /* Character ranges are ignored when class_ranges is present. */
+          if (class_ranges != NULL) continue;
+#endif
+
           /* In an EBCDIC environment, Perl treats alphabetic ranges specially
           because there are holes in the encoding, and simply using the range
           A-Z (for example) would include the characters in the holes. This
@@ -6461,7 +6300,7 @@ for (;; pptr++)
             if (C <= CHAR_i)
               {
               class_has_8bitchar +=
-                add_to_class(classbits, &class_uchardata, options, xoptions,
+                add_to_class(classbits, &class_uchardata, options,
                   cb, C + uc, ((D < CHAR_i)? D : CHAR_i) + uc);
               C = CHAR_j;
               }
@@ -6469,7 +6308,7 @@ for (;; pptr++)
             if (C <= D && C <= CHAR_r)
               {
               class_has_8bitchar +=
-                add_to_class(classbits, &class_uchardata, options, xoptions,
+                add_to_class(classbits, &class_uchardata, options,
                   cb, C + uc, ((D < CHAR_r)? D : CHAR_r) + uc);
               C = CHAR_s;
               }
@@ -6477,7 +6316,7 @@ for (;; pptr++)
             if (C <= D)
               {
               class_has_8bitchar +=
-                add_to_class(classbits, &class_uchardata, options, xoptions,
+                add_to_class(classbits, &class_uchardata, options,
                   cb, C + uc, D + uc);
               }
             }
@@ -6486,16 +6325,19 @@ for (;; pptr++)
           /* Not an EBCDIC special range */
 
           class_has_8bitchar += add_to_class(classbits, &class_uchardata,
-            options, xoptions, cb, c, d);
+            options, cb, c, d);
           goto CONTINUE_CLASS;   /* Go get the next char in the class */
           }  /* End of range handling */
 
+#ifdef SUPPORT_WIDE_CHARS
+        /* Character ranges are ignored when class_ranges is present. */
+        if (class_ranges != NULL) continue;
+#endif
 
         /* Handle a single character. */
 
         class_has_8bitchar +=
-          add_to_class(classbits, &class_uchardata, options, xoptions, cb,
-            meta, meta);
+          add_to_class(classbits, &class_uchardata, options, cb, meta, meta);
         }
 
       /* Continue to the next item in the class. */
@@ -6522,6 +6364,36 @@ for (;; pptr++)
 
       continue;  /* Needed to avoid error when not supporting wide chars */
       }   /* End of main class-processing loop */
+
+#ifdef SUPPORT_WIDE_CHARS
+    if (class_ranges != NULL)
+      {
+      uint32_t *range = class_ranges;
+      uint32_t *end = class_ranges + class_ranges_size;
+
+      do
+        {
+        class_has_8bitchar +=
+          add_to_class(classbits, &class_uchardata, options, cb,
+            range[0], range[1]);
+
+        if (class_uchardata > class_uchardata_base)
+          {
+          xclass = TRUE;
+          if (lengthptr != NULL)
+            {
+            *lengthptr += class_uchardata - class_uchardata_base;
+            class_uchardata = class_uchardata_base;
+            }
+          }
+
+        range += 2;
+        }
+      while (range < end);
+
+      cb->cx->memctl.free(class_ranges, cb->cx->memctl.memory_data);
+      }
+#endif
 
     /* If this class is the first thing in the branch, there can be no first
     char setting, whatever the repeat count. Any reqcu setting must remain
@@ -8774,10 +8646,10 @@ for (;;)
     {
     if (lengthptr == NULL)
       {
-      PCRE2_SIZE branch_length = code - last_branch;
+      uint32_t branch_length = (uint32_t)(code - last_branch);
       do
         {
-        PCRE2_SIZE prev_length = GET(last_branch, 1);
+        uint32_t prev_length = GET(last_branch, 1);
         PUT(last_branch, 1, branch_length);
         branch_length = prev_length;
         last_branch -= branch_length;
@@ -8788,7 +8660,7 @@ for (;;)
     /* Fill in the ket */
 
     *code = OP_KET;
-    PUT(code, 1, (int)(code - start_bracket));
+    PUT(code, 1, (uint32_t)(code - start_bracket));
     code += 1 + LINK_SIZE;
 
     /* Set values to pass back */
@@ -8883,13 +8755,14 @@ Arguments:
   cb             points to the compile data block
   atomcount      atomic group level
   inassert       TRUE if in an assertion
+  dotstar_anchor TRUE if automatic anchoring optimization is enabled
 
 Returns:     TRUE or FALSE
 */
 
 static BOOL
 is_anchored(PCRE2_SPTR code, uint32_t bracket_map, compile_block *cb,
-  int atomcount, BOOL inassert)
+  int atomcount, BOOL inassert, BOOL dotstar_anchor)
 {
 do {
    PCRE2_SPTR scode = first_significant_code(
@@ -8901,7 +8774,7 @@ do {
    if (op == OP_BRA  || op == OP_BRAPOS ||
        op == OP_SBRA || op == OP_SBRAPOS)
      {
-     if (!is_anchored(scode, bracket_map, cb, atomcount, inassert))
+     if (!is_anchored(scode, bracket_map, cb, atomcount, inassert, dotstar_anchor))
        return FALSE;
      }
 
@@ -8912,14 +8785,14 @@ do {
      {
      int n = GET2(scode, 1+LINK_SIZE);
      uint32_t new_map = bracket_map | ((n < 32)? (1u << n) : 1);
-     if (!is_anchored(scode, new_map, cb, atomcount, inassert)) return FALSE;
+     if (!is_anchored(scode, new_map, cb, atomcount, inassert, dotstar_anchor)) return FALSE;
      }
 
    /* Positive forward assertion */
 
    else if (op == OP_ASSERT || op == OP_ASSERT_NA)
      {
-     if (!is_anchored(scode, bracket_map, cb, atomcount, TRUE)) return FALSE;
+     if (!is_anchored(scode, bracket_map, cb, atomcount, TRUE, dotstar_anchor)) return FALSE;
      }
 
    /* Condition. If there is no second branch, it can't be anchored. */
@@ -8927,7 +8800,7 @@ do {
    else if (op == OP_COND || op == OP_SCOND)
      {
      if (scode[GET(scode,1)] != OP_ALT) return FALSE;
-     if (!is_anchored(scode, bracket_map, cb, atomcount, inassert))
+     if (!is_anchored(scode, bracket_map, cb, atomcount, inassert, dotstar_anchor))
        return FALSE;
      }
 
@@ -8935,7 +8808,7 @@ do {
 
    else if (op == OP_ONCE)
      {
-     if (!is_anchored(scode, bracket_map, cb, atomcount + 1, inassert))
+     if (!is_anchored(scode, bracket_map, cb, atomcount + 1, inassert, dotstar_anchor))
        return FALSE;
      }
 
@@ -8950,8 +8823,7 @@ do {
              op == OP_TYPEPOSSTAR))
      {
      if (scode[1] != OP_ALLANY || (bracket_map & cb->backref_map) != 0 ||
-         atomcount > 0 || cb->had_pruneorskip || inassert ||
-         (cb->external_options & PCRE2_NO_DOTSTAR_ANCHOR) != 0)
+         atomcount > 0 || cb->had_pruneorskip || inassert || !dotstar_anchor)
        return FALSE;
      }
 
@@ -8988,13 +8860,14 @@ Arguments:
   cb             points to the compile data
   atomcount      atomic group level
   inassert       TRUE if in an assertion
+  dotstar_anchor TRUE if automatic anchoring optimization is enabled
 
 Returns:         TRUE or FALSE
 */
 
 static BOOL
 is_startline(PCRE2_SPTR code, unsigned int bracket_map, compile_block *cb,
-  int atomcount, BOOL inassert)
+  int atomcount, BOOL inassert, BOOL dotstar_anchor)
 {
 do {
    PCRE2_SPTR scode = first_significant_code(
@@ -9025,7 +8898,8 @@ do {
        return FALSE;
 
        default:     /* Assertion */
-       if (!is_startline(scode, bracket_map, cb, atomcount, TRUE)) return FALSE;
+       if (!is_startline(scode, bracket_map, cb, atomcount, TRUE, dotstar_anchor))
+         return FALSE;
        do scode += GET(scode, 1); while (*scode == OP_ALT);
        scode += 1 + LINK_SIZE;
        break;
@@ -9039,7 +8913,7 @@ do {
    if (op == OP_BRA  || op == OP_BRAPOS ||
        op == OP_SBRA || op == OP_SBRAPOS)
      {
-     if (!is_startline(scode, bracket_map, cb, atomcount, inassert))
+     if (!is_startline(scode, bracket_map, cb, atomcount, inassert, dotstar_anchor))
        return FALSE;
      }
 
@@ -9050,14 +8924,15 @@ do {
      {
      int n = GET2(scode, 1+LINK_SIZE);
      unsigned int new_map = bracket_map | ((n < 32)? (1u << n) : 1);
-     if (!is_startline(scode, new_map, cb, atomcount, inassert)) return FALSE;
+     if (!is_startline(scode, new_map, cb, atomcount, inassert, dotstar_anchor))
+       return FALSE;
      }
 
    /* Positive forward assertions */
 
    else if (op == OP_ASSERT || op == OP_ASSERT_NA)
      {
-     if (!is_startline(scode, bracket_map, cb, atomcount, TRUE))
+     if (!is_startline(scode, bracket_map, cb, atomcount, TRUE, dotstar_anchor))
        return FALSE;
      }
 
@@ -9065,7 +8940,7 @@ do {
 
    else if (op == OP_ONCE)
      {
-     if (!is_startline(scode, bracket_map, cb, atomcount + 1, inassert))
+     if (!is_startline(scode, bracket_map, cb, atomcount + 1, inassert, dotstar_anchor))
        return FALSE;
      }
 
@@ -9079,8 +8954,7 @@ do {
    else if (op == OP_TYPESTAR || op == OP_TYPEMINSTAR || op == OP_TYPEPOSSTAR)
      {
      if (scode[1] != OP_ANY || (bracket_map & cb->backref_map) != 0 ||
-         atomcount > 0 || cb->had_pruneorskip || inassert ||
-         (cb->external_options & PCRE2_NO_DOTSTAR_ANCHOR) != 0)
+         atomcount > 0 || cb->had_pruneorskip || inassert || !dotstar_anchor)
        return FALSE;
      }
 
@@ -10362,6 +10236,10 @@ int regexrc;                          /* Return from compile */
 
 uint32_t i;                           /* Local loop counter */
 
+/* Enable all optimizations by default. */
+uint32_t optim_flags = ccontext != NULL ? ccontext->optimization_flags :
+                                          PCRE2_OPTIMIZATION_ALL;
+
 /* Comments at the head of this file explain about these variables. */
 
 uint32_t stack_groupinfo[GROUPINFO_DEFAULT_SIZE];
@@ -10431,6 +10309,18 @@ if (patlen > ccontext->max_pattern_length)
   *errorptr = ERR88;
   return NULL;
   }
+
+/* Optimization flags in 'options' can override those in the compile context.
+This is because some options to disable optimizations were added before the
+optimization flags word existed, and we need to continue supporting them
+for backwards compatibility. */
+
+if ((options & PCRE2_NO_AUTO_POSSESS) != 0)
+  optim_flags &= ~PCRE2_OPTIM_AUTO_POSSESS;
+if ((options & PCRE2_NO_DOTSTAR_ANCHOR) != 0)
+  optim_flags &= ~PCRE2_OPTIM_DOTSTAR_ANCHOR;
+if ((options & PCRE2_NO_START_OPTIMIZE) != 0)
+  optim_flags &= ~PCRE2_OPTIM_START_OPTIMIZE;
 
 /* From here on, all returns from this function should end up going via the
 EXIT label. */
@@ -10514,12 +10404,13 @@ if ((options & PCRE2_LITERAL) == 0)
     {
     for (i = 0; i < sizeof(pso_list)/sizeof(pso); i++)
       {
-      uint32_t c, pp;
       const pso *p = pso_list + i;
 
       if (patlen - skipatstart - 2 >= p->length &&
           PRIV(strncmp_c8)(ptr + skipatstart + 2, p->name, p->length) == 0)
         {
+        uint32_t c, pp;
+
         skipatstart += p->length + 2;
         switch(p->type)
           {
@@ -10546,18 +10437,12 @@ if ((options & PCRE2_LITERAL) == 0)
           case PSO_LIMH:
           c = 0;
           pp = skipatstart;
-          if (!IS_DIGIT(ptr[pp]))
-            {
-            errorcode = ERR60;
-            ptr += pp;
-            goto HAD_EARLY_ERROR;
-            }
           while (pp < patlen && IS_DIGIT(ptr[pp]))
             {
             if (c > UINT32_MAX / 10 - 1) break;   /* Integer overflow */
             c = c*10 + (ptr[pp++] - CHAR_0);
             }
-          if (pp >= patlen || ptr[pp] != CHAR_RIGHT_PARENTHESIS)
+          if (pp >= patlen || pp == skipatstart || ptr[pp] != CHAR_RIGHT_PARENTHESIS)
             {
             errorcode = ERR60;
             ptr += pp;
@@ -10568,6 +10453,32 @@ if ((options & PCRE2_LITERAL) == 0)
             else limit_depth = c;
           skipatstart = ++pp;
           break;
+
+          case PSO_OPTMZ:
+          optim_flags &= ~(p->value);
+
+          /* For backward compatibility the three original VERBs to disable
+          optimizations need to also update the corresponding external option. */
+
+          switch(p->value)
+            {
+            case PCRE2_OPTIM_AUTO_POSSESS:
+            cb.external_options |= PCRE2_NO_AUTO_POSSESS;
+            break;
+
+            case PCRE2_OPTIM_DOTSTAR_ANCHOR:
+            cb.external_options |= PCRE2_NO_DOTSTAR_ANCHOR;
+            break;
+
+            case PCRE2_OPTIM_START_OPTIMIZE:
+            cb.external_options |= PCRE2_NO_START_OPTIMIZE;
+            break;
+            }
+
+          break;
+
+          default:
+          PCRE2_UNREACHABLE();
           }
         break;   /* Out of the table scan loop */
         }
@@ -10863,6 +10774,7 @@ re->top_bracket = 0;
 re->top_backref = 0;
 re->name_entry_size = cb.name_entry_size;
 re->name_count = cb.names_found;
+re->optimization_flags = optim_flags;
 
 /* The basic block is immediately followed by the name table, and the compiled
 code follows after that. */
@@ -10986,7 +10898,7 @@ if (errorcode == 0 && cb.had_recurse)
         }
       }
 
-    PUT(rcode, 1, rgroup - codestart);
+    PUT(rcode, 1, (uint32_t)(rgroup - codestart));
     }
   }
 
@@ -11005,7 +10917,7 @@ used in this code because at least one compiler gives a warning about loss of
 "const" attribute if the cast (PCRE2_UCHAR *)codestart is used directly in the
 function call. */
 
-if (errorcode == 0 && (re->overall_options & PCRE2_NO_AUTO_POSSESS) == 0)
+if (errorcode == 0 && (optim_flags & PCRE2_OPTIM_AUTO_POSSESS) != 0)
   {
   PCRE2_UCHAR *temp = (PCRE2_UCHAR *)codestart;
   if (PRIV(auto_possessify)(temp, &cb) != 0) errorcode = ERR80;
@@ -11021,18 +10933,21 @@ or anything else, such as starting with non-atomic .* when DOTALL is set and
 there are no occurrences of *PRUNE or *SKIP (though there is an option to
 disable this case). */
 
-if ((re->overall_options & PCRE2_ANCHORED) == 0 &&
-     is_anchored(codestart, 0, &cb, 0, FALSE))
-  re->overall_options |= PCRE2_ANCHORED;
+if ((re->overall_options & PCRE2_ANCHORED) == 0)
+  {
+  BOOL dotstar_anchor = ((optim_flags & PCRE2_OPTIM_DOTSTAR_ANCHOR) != 0);
+  if (is_anchored(codestart, 0, &cb, 0, FALSE, dotstar_anchor))
+    re->overall_options |= PCRE2_ANCHORED;
+  }
 
 /* Set up the first code unit or startline flag, the required code unit, and
-then study the pattern. This code need not be obeyed if PCRE2_NO_START_OPTIMIZE
-is set, as the data it would create will not be used. Note that a first code
+then study the pattern. This code need not be obeyed if PCRE2_OPTIM_START_OPTIMIZE
+is disabled, as the data it would create will not be used. Note that a first code
 unit (but not the startline flag) is useful for anchored patterns because it
 can still give a quick "no match" and also avoid searching for a last code
 unit. */
 
-if ((re->overall_options & PCRE2_NO_START_OPTIMIZE) == 0)
+if ((optim_flags & PCRE2_OPTIM_START_OPTIMIZE) != 0)
   {
   int minminlength = 0;  /* For minimal minlength from first/required CU */
 
@@ -11095,9 +11010,12 @@ if ((re->overall_options & PCRE2_NO_START_OPTIMIZE) == 0)
   non-DOTALL matches when *PRUNE and SKIP are not present. (There is an option
   that disables this case.) */
 
-  else if ((re->overall_options & PCRE2_ANCHORED) == 0 &&
-           is_startline(codestart, 0, &cb, 0, FALSE))
-    re->flags |= PCRE2_STARTLINE;
+  else if ((re->overall_options & PCRE2_ANCHORED) == 0)
+    {
+    BOOL dotstar_anchor = ((optim_flags & PCRE2_OPTIM_DOTSTAR_ANCHOR) != 0);
+    if (is_startline(codestart, 0, &cb, 0, FALSE, dotstar_anchor))
+      re->flags |= PCRE2_STARTLINE;
+    }
 
   /* Handle the "required code unit", if one is set. In the UTF case we can
   increment the minimum minimum length only if we are sure this really is a

@@ -831,6 +831,19 @@
 
 /x++/IB
 
+# For comparison with the following test, which disables auto-possessification
+# In this regex, x+ should be converted to x++
+/x+y/B,auto_possess
+
+# In this regex, x+ should not be converted to x++
+/x+y/B,auto_possess_off
+
+# Also in this regex, x+ should not be converted to x++
+/x+y/B,optimization_none
+
+# In this one too, x+ should not be converted to x++
+/x+y/B,no_auto_possess
+
 /x{1,3}+/B,no_auto_possess
 
 /x{1,3}+/Bi,no_auto_possess
@@ -838,6 +851,8 @@
 /[^x]{1,3}+/B,no_auto_possess
 
 /[^x]{1,3}+/Bi,no_auto_possess
+
+/x{1,3}+/IB,auto_possess_off
 
 /(x)*+/IB
 
@@ -3983,6 +3998,10 @@
 
 /\xthing/
 
+/^A\xZ/
+
+/^A\x/
+
 /\x{}/
 
 /\x{whatever}/
@@ -4056,9 +4075,15 @@
 
 /(?(VERSION=10.101)yes|no)/
 
+# We should see the starting code unit, required code unit, and minimum length set for this regex:
 /abcd/I
 
+# None of the following three should have the starting code unit, required code unit, and minimum length set:
 /abcd/I,no_start_optimize
+
+/abcd/I,start_optimize_off
+
+/abcd/I,optimization_none
 
 /(|ab)*?d/I
    abd
@@ -4197,6 +4222,73 @@
     123abc123\=substitute_overflow_length,replace=[1]x$1z
     123abc123\=substitute_overflow_length,replace=[0]x$1z
 
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>\1<
+    ZabcZ\=replace=>\2<
+    ZabcZ\=replace=>\8<
+    ZabcZ\=replace=>${1}<
+    ZabcZ\=replace=>${ 1 }<
+    ZabcZ\=replace=>${2}<
+    ZabcZ\=replace=>${8}<
+    ZabcZ\=replace=>$<1><
+    ZabcZ\=replace=>$< 1 ><
+    ZabcZ\=replace=>$<2><
+    ZabcZ\=replace=>$<8><
+    ZabcZ\=replace=>\g<1><
+    ZabcZ\=replace=>\g< 1 ><
+    ZabcZ\=replace=>\g<2><
+    ZabcZ\=replace=>\g<8><
+
+/(*:pear)apple/substitute_extended
+    ZappleZ\=replace=>${*MARK}<
+    ZappleZ\=replace=>$<*MARK><
+    ZappleZ\=replace=>\g<*MARK><
+
+/a(?<named>b)c/substitute_extended
+    ZabcZ\=replace=>${named}<
+    ZabcZ\=replace=>${noexist}<
+    ZabcZ\=replace=>${}<
+    ZabcZ\=replace=>${ }<
+    ZabcZ\=replace=>${ named }<
+    ZabcZ\=replace=>$<named><
+    ZabcZ\=replace=>$<noexist><
+    ZabcZ\=replace=>$<><
+    ZabcZ\=replace=>$< ><
+    ZabcZ\=replace=>$< named ><
+    ZabcZ\=replace=>\g<named><
+    ZabcZ\=replace=>\g<noexist><
+    ZabcZ\=replace=>\g<><
+    ZabcZ\=replace=>\g< ><
+    ZabcZ\=replace=>\g< named ><
+
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>${1:+ yes : no }
+    ZabcZ\=replace=>${1:+ \o{100} : \o{100} }
+    ZabcZ\=replace=>${1:+ \o{Z} : no }
+    ZabcZ\=replace=>${1:+ yes : \o{Z} }
+    ZabcZ\=replace=>${1:+ \g<1> : no }
+    ZabcZ\=replace=>${1:+ yes : \g<1> }
+    ZabcZ\=replace=>${1:+ \g<1 : no }
+    ZabcZ\=replace=>${1:+ yes : \g<1 }
+    ZabcZ\=replace=>${1:+ $<1> : no }
+    ZabcZ\=replace=>${1:+ yes : $<1> }
+    ZabcZ\=replace=>${1:+ $<1 : no }
+    ZabcZ\=replace=>${1:+ yes : $<1 }
+
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>${
+    ZabcZ\=replace=>${1
+    ZabcZ\=replace=>${1Z
+    ZabcZ\=replace=>${1;
+    ZabcZ\=replace=>$<
+    ZabcZ\=replace=>$<1
+    ZabcZ\=replace=>$<1Z
+    ZabcZ\=replace=>$<1;
+    ZabcZ\=replace=>\g<
+    ZabcZ\=replace=>\g<1
+    ZabcZ\=replace=>\g<1Z
+    ZabcZ\=replace=>\g<1;
+
 "((?=(?(?=(?(?=(?(?=()))))))))"
     a
 
@@ -4223,6 +4315,19 @@
 /^abc/info
 
 /^abc/info,no_dotstar_anchor
+
+/^abc/info,dotstar_anchor_off
+
+# For comparison with the following tests, which disable automatic dotstar anchoring
+/.*abc/BI
+
+/.*abc/BI,dotstar_anchor_off
+
+/.*abc/BI,start_optimize_off
+
+/.*abc/BI,optimization_none
+
+/.*abc/BI,no_dotstar_anchor
 
 /.*\d/info,auto_callout
 \= Expect no match
@@ -4612,6 +4717,9 @@ B)x/alt_verbnames,mark
 /a(bc)(DE)/replace=a\u$1\U$1\E$1\l$2\L$2\Eab\Uab\LYZ\EDone,substitute_extended
     abcDE
 
+/(Hello)|wORLD/g,replace=>${1:+\l\U$0:\u\L$0}<,substitute_extended
+    Hello between wORLD
+
 /abcd/replace=xy\kz,substitute_extended
     abcd
 
@@ -4679,6 +4787,21 @@ B)x/alt_verbnames,mark
 
 /abc/substitute_extended,replace=>\845<
     abc
+
+/a(b)(c)/substitute_extended,replace=>\1<
+    abc
+
+/a(b)(c)/substitute_extended,replace=>\2<
+    abc
+
+/a(b)(c)/substitute_extended,replace=>\3<
+    abc
+
+/a(?<namED_1>b)c/substitute_extended
+    abc\=replace=>${namED_1}<
+
+/a(?<namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1>b)c/substitute_extended
+    abc\=replace=>${namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1}<
 
 /^(o(\1{72}{\"{\\{00000059079}\d*){74}}){19}/I
 
@@ -5138,6 +5261,14 @@ a)"xI
 
 /(*LIMIT_HEAP=0)xxx/I
 
+/(*LIMIT_HEAP=123/use_length
+
+/(*LIMIT_MATCH=/use_length
+
+/(*CRLF)(*LIMIT_DEPTH=/use_length
+
+/(*CRLF)(*LIMIT_RECURSION=1)(*BOGUS/use_length
+
 /\d{0,3}(*:abc)(?C1)xxx/callout_info
 
 # ----------------------------------------------------------------------
@@ -5420,6 +5551,28 @@ a)"xI
     caterpillar
     snowcat
     syndicate
+
+# Confirm that the pcre2_set_optimize API does not have any undesired effect on literal patterns
+/(cat)|dog/I,literal,auto_possess_off
+    (cat)|dog
+\= Expect no match
+    the cat sat
+
+/(cat)|dog/I,literal,dotstar_anchor_off
+    (cat)|dog
+\= Expect no match
+    the cat sat
+
+/(cat)|dog/I,literal,optimization_none
+    (cat)|dog
+\= Expect no match
+    the cat sat
+
+# These should result in errors, since it is not permitted to use the
+# PCRE2_NO_AUTO_POSSESS and PCRE2_NO_DOTSTAR_ANCHOR options on a literal pattern
+/(cat)|dog/literal,no_auto_possess
+
+/(cat)|dog/literal,no_dotstar_anchor
 
 /a whole line/match_line,multiline
     Rhubarb \na whole line\n custard
@@ -6390,6 +6543,82 @@ a)"xI
     ab
     ac
 
+# Tests for pcre2_set_optimize()
+
+/abc/I,optimization_none
+
+/abc/I,optimization_none,auto_possess
+
+/abc/I,optimization_none,dotstar_anchor,auto_possess
+
+/abc/I,optimization_none,start_optimize
+
+/abc/I,dotstar_anchor_off,optimization_full
+
+# If pcre2_set_optimize() is used to turn on some optimization, but at the same time,
+# the compile options word turns it off... the compile options word "wins":
+
+/abc/I,no_auto_possess,auto_possess
+
+/abc/I,no_dotstar_anchor,dotstar_anchor
+
+/abc/I,no_start_optimize,start_optimize
+
 # --------------
+
+# larger than GROUP_MAX, smaller than INT_MAX
+/a\800000b/
+
+# coming up on INT_MAX... (used to succeed with \8 being literal 8)
+/a\800000000b/
+
+# over INT_MAX (used to succeed with \8 being literal 8)
+/a\8000000000b/
+
+# --------------
+
+# no_bs0
+
+/a\0b\x00c\00d/
+    a\x{00}b\x{00}c\x{00}d
+
+/a\0b/no_bs0
+
+/b\x00c\00d/no_bs0
+    b\x{00}c\x{00}d
+
+/abc/substitute_extended
+    abc\=replace=a\0b\x00c\00d
+
+/abc/substitute_extended,no_bs0
+    abc\=replace=a\0b
+    abc\=replace=b\x00c\00d
+
+# python_octal
+
+/\0-\00-\01-\012-\0123-\123-\1234/
+    \x00-\x00-\x01-\o{12}-\o{12}3-\o{123}-\o{123}4
+
+/\1/
+
+/\12/
+    \o{12}
+
+/abc/substitute_extended
+    abc\=replace=\0-\00-\01-\012-\0123-\123-\1234
+    abc\=replace=\1
+    abc\=replace=\12
+
+/\0-\00-\01-\012-\0123-\123-\1234/python_octal
+    \x00-\x00-\x01-\o{12}-\o{12}3-\o{123}-\o{123}4
+
+/\1/python_octal
+
+/\12/python_octal
+
+/abc/substitute_extended,python_octal
+    abc\=replace=\0-\00-\01-\012-\0123-\123-\1234
+    abc\=replace=\1
+    abc\=replace=\12
 
 # End of testinput2

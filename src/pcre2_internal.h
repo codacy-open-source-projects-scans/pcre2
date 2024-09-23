@@ -609,6 +609,13 @@ total length of the tables. */
 #define ctypes_offset (cbits_offset + cbit_length)  /* Character types */
 #define TABLES_LENGTH (ctypes_offset + 256)
 
+/* Private flags used in compile_context.optimization_flags */
+
+#define PCRE2_OPTIM_AUTO_POSSESS    0x00000001u
+#define PCRE2_OPTIM_DOTSTAR_ANCHOR  0x00000002u
+#define PCRE2_OPTIM_START_OPTIMIZE  0x00000004u
+
+#define PCRE2_OPTIMIZATION_ALL      0x00000007u
 
 /* -------------------- Character and string names ------------------------ */
 
@@ -1962,6 +1969,8 @@ extern const uint8_t          PRIV(utf8_table4)[];
 #define _pcre2_vspace_list             PCRE2_SUFFIX(_pcre2_vspace_list_)
 #define _pcre2_ucd_boolprop_sets       PCRE2_SUFFIX(_pcre2_ucd_boolprop_sets_)
 #define _pcre2_ucd_caseless_sets       PCRE2_SUFFIX(_pcre2_ucd_caseless_sets_)
+#define _pcre2_ucd_nocase_ranges       PCRE2_SUFFIX(_pcre2_ucd_nocase_ranges_)
+#define _pcre2_ucd_nocase_ranges_size  PCRE2_SUFFIX(_pcre2_ucd_nocase_ranges_size_)
 #define _pcre2_ucd_digit_sets          PCRE2_SUFFIX(_pcre2_ucd_digit_sets_)
 #define _pcre2_ucd_script_sets         PCRE2_SUFFIX(_pcre2_ucd_script_sets_)
 #define _pcre2_ucd_records             PCRE2_SUFFIX(_pcre2_ucd_records_)
@@ -1986,6 +1995,8 @@ extern const uint32_t                  PRIV(hspace_list)[];
 extern const uint32_t                  PRIV(vspace_list)[];
 extern const uint32_t                  PRIV(ucd_boolprop_sets)[];
 extern const uint32_t                  PRIV(ucd_caseless_sets)[];
+extern const uint32_t                  PRIV(ucd_nocase_ranges)[];
+extern const uint32_t                  PRIV(ucd_nocase_ranges_size);
 extern const uint32_t                  PRIV(ucd_digit_sets)[];
 extern const uint32_t                  PRIV(ucd_script_sets)[];
 extern const ucd_record                PRIV(ucd_records)[];
@@ -2046,11 +2057,12 @@ is available. */
 #define _pcre2_valid_utf             PCRE2_SUFFIX(_pcre2_valid_utf_)
 #define _pcre2_was_newline           PCRE2_SUFFIX(_pcre2_was_newline_)
 #define _pcre2_xclass                PCRE2_SUFFIX(_pcre2_xclass_)
+#define _pcre2_optimize_class        PCRE2_SUFFIX(_pcre2_optimize_class_)
 
 extern int          _pcre2_auto_possessify(PCRE2_UCHAR *,
                       const compile_block *);
 extern int          _pcre2_check_escape(PCRE2_SPTR *, PCRE2_SPTR, uint32_t *,
-                      int *, uint32_t, uint32_t, BOOL, compile_block *);
+                      int *, uint32_t, uint32_t, uint32_t, BOOL, compile_block *);
 extern PCRE2_SPTR   _pcre2_extuni(uint32_t, PCRE2_SPTR, PCRE2_SPTR, PCRE2_SPTR,
                       BOOL, int *);
 extern PCRE2_SPTR   _pcre2_find_bracket(PCRE2_SPTR, BOOL, int);

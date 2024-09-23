@@ -130,11 +130,13 @@ for (; ptr < ptrend; ptr++)
 
     ptr += 1;  /* Must point after \ */
     erc = PRIV(check_escape)(&ptr, ptrend, &ch, &errorcode,
-      code->overall_options, code->extra_options, TRUE, NULL);
+      code->overall_options, code->extra_options, code->top_bracket, FALSE, NULL);
     ptr -= 1;  /* Back to last code unit of escape */
     if (errorcode != 0)
       {
-      rc = errorcode;
+      /* errorcode from check_escape is positive, so must not be returned by
+      pcre2_substitute(). */
+      rc = PCRE2_ERROR_BADREPESCAPE;
       goto EXIT;
       }
 
@@ -148,7 +150,18 @@ for (; ptr < ptrend; ptr++)
       literal = TRUE;
       break;
 
+      case ESC_g:
+      /* The \g<name> form (\g<number> already handled by check_escape)
+
+      Don't worry about finding the matching ">". We are super, super lenient
+      about validating ${} replacements inside find_text_end(), so we certainly
+      don't need to worry about other syntax. Importantly, a \g<..> or $<...>
+      sequence can't contain a '}' character. */
+      break;
+
       default:
+      if (erc < 0)
+          break;  /* capture group reference */
       rc = PCRE2_ERROR_BADREPESCAPE;
       goto EXIT;
       }
@@ -162,6 +175,86 @@ EXIT:
 return rc;
 }
 
+
+/*************************************************
+*           Validate group name                  *
+*************************************************/
+
+/* This function scans for a capture group name, validating it
+consists of legal characters, is not empty, and does not exceed
+MAX_NAME_SIZE.
+
+Arguments:
+  ptrptr    points to the pointer to the start of the text (updated)
+  ptrend    end of the whole string
+  utf       true if the input is UTF-encoded
+  ctypes    pointer to the character types table
+
+Returns:    TRUE if a name was read
+            FALSE otherwise
+*/
+
+static BOOL
+read_name(PCRE2_SPTR *ptrptr, PCRE2_SPTR ptrend, BOOL utf,
+    const uint8_t* ctypes)
+{
+PCRE2_SPTR ptr = *ptrptr;
+PCRE2_SPTR nameptr = ptr;
+
+if (ptr >= ptrend)                 /* No characters in name */
+  goto FAILED;
+
+/* We do not need to check whether the name starts with a non-digit.
+We are simply referencing names here, not defining them. */
+
+/* See read_name in the pcre2_compile.c for the corresponding logic
+restricting group names inside the pattern itself. */
+
+#ifdef SUPPORT_UNICODE
+if (utf)
+  {
+  uint32_t c, type;
+
+  while (ptr < ptrend)
+    {
+    GETCHAR(c, ptr);
+    type = UCD_CHARTYPE(c);
+    if (type != ucp_Nd && PRIV(ucp_gentype)[type] != ucp_L &&
+        c != CHAR_UNDERSCORE) break;
+    ptr++;
+    FORWARDCHARTEST(ptr, ptrend);
+    }
+  }
+else
+#else
+(void)utf;  /* Avoid compiler warning */
+#endif      /* SUPPORT_UNICODE */
+
+/* Handle group names in non-UTF modes. */
+
+  {
+  while (ptr < ptrend && MAX_255(*ptr) && (ctypes[*ptr] & ctype_word) != 0)
+    {
+    ptr++;
+    }
+  }
+
+/* Check name length */
+
+if (ptr - nameptr > MAX_NAME_SIZE)
+  goto FAILED;
+
+/* Subpattern names must not be empty */
+if (ptr == nameptr)
+  goto FAILED;
+
+*ptrptr = ptr;
+return TRUE;
+
+FAILED:
+*ptrptr = ptr;
+return FALSE;
+}
 
 
 /*************************************************
@@ -234,13 +327,13 @@ BOOL escaped_literal = FALSE;
 BOOL overflowed = FALSE;
 BOOL use_existing_match;
 BOOL replacement_only;
-#ifdef SUPPORT_UNICODE
 BOOL utf = (code->overall_options & PCRE2_UTF) != 0;
+#ifdef SUPPORT_UNICODE
 BOOL ucp = (code->overall_options & PCRE2_UCP) != 0;
 #endif
 PCRE2_UCHAR temp[6];
 PCRE2_SPTR ptr;
-PCRE2_SPTR repend;
+PCRE2_SPTR repend = NULL;
 PCRE2_SIZE extra_needed = 0;
 PCRE2_SIZE buff_offset, buff_length, lengthleft, fraglength;
 PCRE2_SIZE *ovector;
@@ -514,6 +607,13 @@ do
     {
     uint32_t ch;
     unsigned int chlen;
+    int group;
+    uint32_t special;
+    PCRE2_SPTR text1_start = NULL;
+    PCRE2_SPTR text1_end = NULL;
+    PCRE2_SPTR text2_start = NULL;
+    PCRE2_SPTR text2_end = NULL;
+    PCRE2_UCHAR name[MAX_NAME_SIZE + 1];
 
     /* If at the end of a nested substring, pop the stack. */
 
@@ -542,24 +642,23 @@ do
 
     if (*ptr == CHAR_DOLLAR_SIGN)
       {
-      int group, n;
-      uint32_t special = 0;
       BOOL inparens;
+      BOOL inangle;
       BOOL star;
       PCRE2_SIZE sublength;
-      PCRE2_SPTR text1_start = NULL;
-      PCRE2_SPTR text1_end = NULL;
-      PCRE2_SPTR text2_start = NULL;
-      PCRE2_SPTR text2_end = NULL;
       PCRE2_UCHAR next;
-      PCRE2_UCHAR name[33];
 
       if (++ptr >= repend) goto BAD;
       if ((next = *ptr) == CHAR_DOLLAR_SIGN) goto LOADLITERAL;
 
+      special = 0;
+      text1_start = NULL;
+      text1_end = NULL;
+      text2_start = NULL;
+      text2_end = NULL;
       group = -1;
-      n = 0;
       inparens = FALSE;
+      inangle = FALSE;
       star = FALSE;
 
       if (next == CHAR_LEFT_CURLY_BRACKET)
@@ -568,15 +667,24 @@ do
         next = *ptr;
         inparens = TRUE;
         }
+      else if (next == CHAR_LESS_THAN_SIGN)
+        {
+        /* JavaScript compatibility syntax, $<name>. Processes only named
+        groups (not numbered) and does not support extensions such as star
+        (you can do ${name} and ${*name}, but not $<*name>). */
+        if (++ptr >= repend) goto BAD;
+        next = *ptr;
+        inangle = TRUE;
+        }
 
-      if (next == CHAR_ASTERISK)
+      if (!inangle && next == CHAR_ASTERISK)
         {
         if (++ptr >= repend) goto BAD;
         next = *ptr;
         star = TRUE;
         }
 
-      if (!star && next >= CHAR_0 && next <= CHAR_9)
+      if (!star && !inangle && next >= CHAR_0 && next <= CHAR_9)
         {
         group = next - CHAR_0;
         while (++ptr < repend)
@@ -607,17 +715,16 @@ do
         }
       else
         {
-        const uint8_t *ctypes = code->tables + ctypes_offset;
-        while (MAX_255(next) && (ctypes[next] & ctype_word) != 0)
-          {
-          name[n++] = next;
-          if (n > 32) goto BAD;
-          if (++ptr >= repend) break;
-          next = *ptr;
-          }
-        if (n == 0) goto BAD;
-        name[n] = 0;
+        PCRE2_SIZE name_len;
+        PCRE2_SPTR name_start = ptr;
+        if (!read_name(&ptr, repend, utf, code->tables + ctypes_offset))
+          goto BAD;
+        name_len = ptr - name_start;
+        memcpy(name, name_start, CU2BYTES(name_len));
+        name[name_len] = 0;
         }
+
+      next = 0; /* not used or updated after this point */
 
       /* In extended mode we recognize ${name:+set text:unset text} and
       ${name:-default text}. */
@@ -625,7 +732,7 @@ do
       if (inparens)
         {
         if ((suboptions & PCRE2_SUBSTITUTE_EXTENDED) != 0 &&
-             !star && ptr < repend - 2 && next == CHAR_COLON)
+             !star && ptr < repend - 2 && *ptr == CHAR_COLON)
           {
           special = *(++ptr);
           if (special != CHAR_PLUS && special != CHAR_MINUS)
@@ -660,6 +767,13 @@ do
         ptr++;
         }
 
+      if (inangle)
+        {
+        if (ptr >= repend || *ptr != CHAR_GREATER_THAN_SIGN)
+          goto BAD;
+        ptr++;
+        }
+
       /* Have found a syntactically correct group number or name, or *name.
       Only *MARK is currently recognized. */
 
@@ -686,6 +800,7 @@ do
         {
         PCRE2_SPTR subptr, subptrend;
 
+        GROUP_SUBSTITUTE:
         /* Find a number for a named group. In case there are duplicate names,
         search for the first one that is set. If the name is not found when
         PCRE2_SUBSTITUTE_UNKNOWN_EMPTY is set, set the group number to a
@@ -839,6 +954,12 @@ do
         forcecase = -1;
         forcecasereset = 0;
         ptr += 2;
+        if (ptr + 2 < repend && ptr[0] == CHAR_BACKSLASH && ptr[1] == CHAR_U)
+          {
+          /* Perl title-casing feature for \l\U (and \u\L) */
+          forcecasereset = 1;
+          ptr += 2;
+          }
         continue;
 
         case CHAR_U:
@@ -850,6 +971,11 @@ do
         forcecase = 1;
         forcecasereset = 0;
         ptr += 2;
+        if (ptr + 2 < repend && ptr[0] == CHAR_BACKSLASH && ptr[1] == CHAR_L)
+          {
+          forcecasereset = -1;
+          ptr += 2;
+          }
         continue;
 
         default:
@@ -858,7 +984,7 @@ do
 
       ptr++;  /* Point after \ */
       rc = PRIV(check_escape)(&ptr, repend, &ch, &errorcode,
-        code->overall_options, code->extra_options, TRUE, NULL);
+        code->overall_options, code->extra_options, code->top_bracket, FALSE, NULL);
       if (errorcode != 0) goto BADESCAPE;
 
       switch(rc)
@@ -874,7 +1000,39 @@ do
         case 0:      /* Data character */
         goto LITERAL;
 
+        case ESC_g:
+          {
+          PCRE2_SIZE name_len;
+          PCRE2_SPTR name_start;
+
+          /* Parse the \g<name> form (\g<number> already handled by check_escape) */
+          if (ptr >= repend || *ptr != CHAR_LESS_THAN_SIGN)
+            goto BADESCAPE;
+          ++ptr;
+
+          name_start = ptr;
+          if (!read_name(&ptr, repend, utf, code->tables + ctypes_offset))
+            goto BADESCAPE;
+          name_len = ptr - name_start;
+
+          if (ptr >= repend || *ptr != CHAR_GREATER_THAN_SIGN)
+            goto BADESCAPE;
+          ++ptr;
+
+          special = 0;
+          group = -1;
+          memcpy(name, name_start, CU2BYTES(name_len));
+          name[name_len] = 0;
+          goto GROUP_SUBSTITUTE;
+          }
+
         default:
+        if (rc < 0)
+          {
+          special = 0;
+          group = -rc;
+          goto GROUP_SUBSTITUTE;
+          }
         goto BADESCAPE;
         }
       }

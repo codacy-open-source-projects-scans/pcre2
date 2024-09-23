@@ -2942,6 +2942,47 @@ Capture group count = 0
 First code unit = 'x'
 Subject length lower bound = 1
 
+# For comparison with the following test, which disables auto-possessification
+# In this regex, x+ should be converted to x++
+/x+y/B,auto_possess
+------------------------------------------------------------------
+        Bra
+        x++
+        y
+        Ket
+        End
+------------------------------------------------------------------
+
+# In this regex, x+ should not be converted to x++
+/x+y/B,auto_possess_off
+------------------------------------------------------------------
+        Bra
+        x+
+        y
+        Ket
+        End
+------------------------------------------------------------------
+
+# Also in this regex, x+ should not be converted to x++
+/x+y/B,optimization_none
+------------------------------------------------------------------
+        Bra
+        x+
+        y
+        Ket
+        End
+------------------------------------------------------------------
+
+# In this one too, x+ should not be converted to x++
+/x+y/B,no_auto_possess
+------------------------------------------------------------------
+        Bra
+        x+
+        y
+        Ket
+        End
+------------------------------------------------------------------
+
 /x{1,3}+/B,no_auto_possess
 ------------------------------------------------------------------
         Bra
@@ -2977,6 +3018,19 @@ Subject length lower bound = 1
         Ket
         End
 ------------------------------------------------------------------
+
+/x{1,3}+/IB,auto_possess_off
+------------------------------------------------------------------
+        Bra
+        x
+        x{0,2}+
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+Optimizations: dotstar_anchor,start_optimize
+First code unit = 'x'
+Subject length lower bound = 1
 
 /(x)*+/IB
 ------------------------------------------------------------------
@@ -5506,13 +5560,13 @@ Subject length lower bound = 4
 No match
 
 /a{11111111111111111111}/I
-Failed: error 105 at offset 8: number too big in {} quantifier
+Failed: error 105 at offset 22: number too big in {} quantifier
 
 /(){64294967295}/I
-Failed: error 105 at offset 9: number too big in {} quantifier
+Failed: error 105 at offset 14: number too big in {} quantifier
 
 /(){2,4294967295}/I
-Failed: error 105 at offset 11: number too big in {} quantifier
+Failed: error 105 at offset 15: number too big in {} quantifier
 
 "(?i:a)(?i:b)(?i:c)(?i:d)(?i:e)(?i:f)(?i:g)(?i:h)(?i:i)(?i:j)(k)(?i:l)A\1B"I
 Capture group count = 1
@@ -8374,7 +8428,7 @@ No match
 Failed: error 166 at offset 7: (*MARK) must have an argument
 
 /\g6666666666/
-Failed: error 161 at offset 7: subpattern number is too big
+Failed: error 161 at offset 12: subpattern number is too big
 
 /[\g6666666666]/B
 ------------------------------------------------------------------
@@ -13239,7 +13293,7 @@ Failed: error 167 at offset 5: non-hex character in \x{} (closing brace missing?
 Failed: error 167 at offset 7: non-hex character in \x{} (closing brace missing?)
 
 /^A\x{/
-Failed: error 178 at offset 5: digits missing in \x{} or \o{} or \N{U+}
+Failed: error 178 at offset 5: digits missing after \x or in \x{} or \o{} or \N{U+}
 
 /[ab]++/B,no_auto_possess
 ------------------------------------------------------------------
@@ -13451,15 +13505,22 @@ Failed: error 133 at offset 7: parentheses are too deeply nested (stack check)
 Failed: error 155 at offset 2: missing opening brace after \o
 
 /\o{}/
-Failed: error 178 at offset 3: digits missing in \x{} or \o{} or \N{U+}
+Failed: error 178 at offset 3: digits missing after \x or in \x{} or \o{} or \N{U+}
 
 /\o{whatever}/
 Failed: error 164 at offset 3: non-octal character in \o{} (closing brace missing?)
 
 /\xthing/
+Failed: error 178 at offset 2: digits missing after \x or in \x{} or \o{} or \N{U+}
+
+/^A\xZ/
+Failed: error 178 at offset 4: digits missing after \x or in \x{} or \o{} or \N{U+}
+
+/^A\x/
+Failed: error 178 at offset 4: digits missing after \x or in \x{} or \o{} or \N{U+}
 
 /\x{}/
-Failed: error 178 at offset 3: digits missing in \x{} or \o{} or \N{U+}
+Failed: error 178 at offset 3: digits missing after \x or in \x{} or \o{} or \N{U+}
 
 /\x{whatever}/
 Failed: error 167 at offset 3: non-hex character in \x{} (closing brace missing?)
@@ -13592,15 +13653,26 @@ Failed: error 179 at offset 16: syntax error or number too big in (?(VERSION con
 /(?(VERSION=10.101)yes|no)/
 Failed: error 179 at offset 16: syntax error or number too big in (?(VERSION condition
 
+# We should see the starting code unit, required code unit, and minimum length set for this regex:
 /abcd/I
 Capture group count = 0
 First code unit = 'a'
 Last code unit = 'd'
 Subject length lower bound = 4
 
+# None of the following three should have the starting code unit, required code unit, and minimum length set:
 /abcd/I,no_start_optimize
 Capture group count = 0
 Options: no_start_optimize
+Optimizations: auto_possess,dotstar_anchor
+
+/abcd/I,start_optimize_off
+Capture group count = 0
+Optimizations: auto_possess,dotstar_anchor
+
+/abcd/I,optimization_none
+Capture group count = 0
+Optimizations: <none>
 
 /(|ab)*?d/I
 Capture group count = 1
@@ -13616,6 +13688,7 @@ Subject length lower bound = 1
 /(|ab)*?d/I,no_start_optimize
 Capture group count = 1
 Options: no_start_optimize
+Optimizations: auto_possess,dotstar_anchor
    abd
  0: abd
  1: ab
@@ -13689,7 +13762,7 @@ Failed: error -49 at offset 36 in replacement: unknown substring
 
 /abc/replace=a${A23456789012345678901234567890123}z
     123abc
-Failed: error -35 at offset 35 in replacement: invalid replacement string
+Failed: error -49 at offset 37 in replacement: unknown substring
 
 /abc/replace=a${bcd
     123abc
@@ -13811,6 +13884,130 @@ Failed: error -48: no more memory: 10 code units are needed
     123abc123\=substitute_overflow_length,replace=[0]x$1z
 Failed: error -48: no more memory: 10 code units are needed
 
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>\1<
+ 1: Z>b<Z
+    ZabcZ\=replace=>\2<
+Failed: error -49 at offset 3 in replacement: unknown substring
+    ZabcZ\=replace=>\8<
+Failed: error -49 at offset 3 in replacement: unknown substring
+    ZabcZ\=replace=>${1}<
+ 1: Z>b<Z
+    ZabcZ\=replace=>${ 1 }<
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>${2}<
+Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>${8}<
+Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>$<1><
+Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>$< 1 ><
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>$<2><
+Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>$<8><
+Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>\g<1><
+ 1: Z>b<Z
+    ZabcZ\=replace=>\g< 1 ><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g<2><
+Failed: error -49 at offset 6 in replacement: unknown substring
+    ZabcZ\=replace=>\g<8><
+Failed: error -49 at offset 6 in replacement: unknown substring
+
+/(*:pear)apple/substitute_extended
+    ZappleZ\=replace=>${*MARK}<
+ 1: Z>pear<Z
+    ZappleZ\=replace=>$<*MARK><
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZappleZ\=replace=>\g<*MARK><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+
+/a(?<named>b)c/substitute_extended
+    ZabcZ\=replace=>${named}<
+ 1: Z>b<Z
+    ZabcZ\=replace=>${noexist}<
+Failed: error -49 at offset 11 in replacement: unknown substring
+    ZabcZ\=replace=>${}<
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>${ }<
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>${ named }<
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>$<named><
+ 1: Z>b<Z
+    ZabcZ\=replace=>$<noexist><
+Failed: error -49 at offset 11 in replacement: unknown substring
+    ZabcZ\=replace=>$<><
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>$< ><
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>$< named ><
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>\g<named><
+ 1: Z>b<Z
+    ZabcZ\=replace=>\g<noexist><
+Failed: error -49 at offset 12 in replacement: unknown substring
+    ZabcZ\=replace=>\g<><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g< ><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g< named ><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>${1:+ yes : no }
+ 1: Z> yes Z
+    ZabcZ\=replace=>${1:+ \o{100} : \o{100} }
+ 1: Z> @ Z
+    ZabcZ\=replace=>${1:+ \o{Z} : no }
+Failed: error -57 at offset 9 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>${1:+ yes : \o{Z} }
+Failed: error -57 at offset 15 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>${1:+ \g<1> : no }
+ 1: Z> b Z
+    ZabcZ\=replace=>${1:+ yes : \g<1> }
+ 1: Z> yes Z
+    ZabcZ\=replace=>${1:+ \g<1 : no }
+Failed: error -57 at offset 8 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>${1:+ yes : \g<1 }
+Failed: error -57 at offset 14 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>${1:+ $<1> : no }
+Failed: error -49 at offset 11 in replacement: unknown substring
+    ZabcZ\=replace=>${1:+ yes : $<1> }
+ 1: Z> yes Z
+    ZabcZ\=replace=>${1:+ $<1 : no }
+Failed: error -35 at offset 10 in replacement: invalid replacement string
+    ZabcZ\=replace=>${1:+ yes : $<1 }
+ 1: Z> yes Z
+
+/a(b)c/substitute_extended
+    ZabcZ\=replace=>${
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>${1
+Failed: error -58 at offset 4 in replacement: expected closing curly bracket in replacement string
+    ZabcZ\=replace=>${1Z
+Failed: error -58 at offset 4 in replacement: expected closing curly bracket in replacement string
+    ZabcZ\=replace=>${1;
+Failed: error -58 at offset 4 in replacement: expected closing curly bracket in replacement string
+    ZabcZ\=replace=>$<
+Failed: error -35 at offset 3 in replacement: invalid replacement string
+    ZabcZ\=replace=>$<1
+Failed: error -35 at offset 4 in replacement: invalid replacement string
+    ZabcZ\=replace=>$<1Z
+Failed: error -35 at offset 5 in replacement: invalid replacement string
+    ZabcZ\=replace=>$<1;
+Failed: error -35 at offset 4 in replacement: invalid replacement string
+    ZabcZ\=replace=>\g<
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g<1
+Failed: error -57 at offset 3 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g<1Z
+Failed: error -57 at offset 3 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g<1;
+Failed: error -57 at offset 3 in replacement: bad escape sequence in replacement string
+
 "((?=(?(?=(?(?=(?(?=()))))))))"
     a
  0: 
@@ -13887,7 +14084,79 @@ Subject length lower bound = 3
 Capture group count = 0
 Compile options: no_dotstar_anchor
 Overall options: anchored no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
 First code unit = 'a'
+Subject length lower bound = 3
+
+/^abc/info,dotstar_anchor_off
+Capture group count = 0
+Compile options: <none>
+Overall options: anchored
+Optimizations: auto_possess,start_optimize
+First code unit = 'a'
+Subject length lower bound = 3
+
+# For comparison with the following tests, which disable automatic dotstar anchoring
+/.*abc/BI
+------------------------------------------------------------------
+        Bra
+        Any*
+        abc
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+First code unit at start or follows newline
+Last code unit = 'c'
+Subject length lower bound = 3
+
+/.*abc/BI,dotstar_anchor_off
+------------------------------------------------------------------
+        Bra
+        Any*
+        abc
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+Optimizations: auto_possess,start_optimize
+Last code unit = 'c'
+Subject length lower bound = 3
+
+/.*abc/BI,start_optimize_off
+------------------------------------------------------------------
+        Bra
+        Any*
+        abc
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+Optimizations: auto_possess,dotstar_anchor
+
+/.*abc/BI,optimization_none
+------------------------------------------------------------------
+        Bra
+        Any*
+        abc
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+Optimizations: <none>
+
+/.*abc/BI,no_dotstar_anchor
+------------------------------------------------------------------
+        Bra
+        Any*
+        abc
+        Ket
+        End
+------------------------------------------------------------------
+Capture group count = 0
+Options: no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
+Last code unit = 'c'
 Subject length lower bound = 3
 
 /.*\d/info,auto_callout
@@ -13908,6 +14177,7 @@ No match
 /.*\d/info,no_dotstar_anchor,auto_callout
 Capture group count = 0
 Options: auto_callout no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
 Subject length lower bound = 1
 \= Expect no match
     aaa
@@ -13935,12 +14205,14 @@ Subject length lower bound = 1
 /.*\d/dotall,no_dotstar_anchor,info
 Capture group count = 0
 Options: dotall no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
 Subject length lower bound = 1
 
 /(*NO_DOTSTAR_ANCHOR)(?s).*\d/info
 Capture group count = 0
 Compile options: <none>
 Overall options: no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
 Subject length lower bound = 1
 
 '^(?:(a)|b)(?(1)A|B)'
@@ -14514,7 +14786,7 @@ Failed: error 162 at offset 4: subpattern name expected
 "(?J:(?|(?'R')(\k'R')|((?'R'))))"
 
 /(?<=|(\,\$(?73591620449005828816)\xa8.{7}){6}\x09)/
-Failed: error 161 at offset 17: subpattern number is too big
+Failed: error 161 at offset 32: subpattern number is too big
 
 /^(?:(?(1)x|)+)+$()/B
 ------------------------------------------------------------------
@@ -14705,7 +14977,7 @@ No match
  0: ab
 
 /(?(8000000000/
-Failed: error 161 at offset 8: subpattern number is too big
+Failed: error 161 at offset 13: subpattern number is too big
 
 /((?(R8000000000)))/
 Failed: error 161 at offset 9: subpattern number is too big
@@ -14854,6 +15126,10 @@ No match
     abcDE
  1: aBcBCbcdEdeabAByzDone
 
+/(Hello)|wORLD/g,replace=>${1:+\l\U$0:\u\L$0}<,substitute_extended
+    Hello between wORLD
+ 2: >hELLO< between >World<
+
 /abcd/replace=xy\kz,substitute_extended
     abcd
 Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
@@ -14948,7 +15224,27 @@ Failed: error -55 at offset 3 in replacement: requested value is not set
 
 /abc/substitute_extended,replace=>\845<
     abc
- 1: >845<
+Failed: error -49 at offset 5 in replacement: unknown substring
+
+/a(b)(c)/substitute_extended,replace=>\1<
+    abc
+ 1: >b<
+
+/a(b)(c)/substitute_extended,replace=>\2<
+    abc
+ 1: >c<
+
+/a(b)(c)/substitute_extended,replace=>\3<
+    abc
+Failed: error -49 at offset 3 in replacement: unknown substring
+
+/a(?<namED_1>b)c/substitute_extended
+    abc\=replace=>${namED_1}<
+ 1: >b<
+
+/a(?<namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1>b)c/substitute_extended
+    abc\=replace=>${namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1}<
+ 1: >b<
 
 /^(o(\1{72}{\"{\\{00000059079}\d*){74}}){19}/I
 Capture group count = 2
@@ -15924,6 +16220,18 @@ First code unit = 'x'
 Last code unit = 'x'
 Subject length lower bound = 3
 
+/(*LIMIT_HEAP=123/use_length
+Failed: error 160 at offset 16: (*VERB) not recognized or malformed
+
+/(*LIMIT_MATCH=/use_length
+Failed: error 160 at offset 14: (*VERB) not recognized or malformed
+
+/(*CRLF)(*LIMIT_DEPTH=/use_length
+Failed: error 160 at offset 21: (*VERB) not recognized or malformed
+
+/(*CRLF)(*LIMIT_RECURSION=1)(*BOGUS/use_length
+Failed: error 160 at offset 34: (*VERB) not recognized or malformed
+
 /\d{0,3}(*:abc)(?C1)xxx/callout_info
 Callout 1  x
 
@@ -16429,6 +16737,51 @@ No match
 No match
     syndicate
 No match
+
+# Confirm that the pcre2_set_optimize API does not have any undesired effect on literal patterns
+/(cat)|dog/I,literal,auto_possess_off
+Capture group count = 0
+Options: literal
+Optimizations: dotstar_anchor,start_optimize
+First code unit = '('
+Last code unit = 'g'
+Subject length lower bound = 9
+    (cat)|dog
+ 0: (cat)|dog
+\= Expect no match
+    the cat sat
+No match
+
+/(cat)|dog/I,literal,dotstar_anchor_off
+Capture group count = 0
+Options: literal
+Optimizations: auto_possess,start_optimize
+First code unit = '('
+Last code unit = 'g'
+Subject length lower bound = 9
+    (cat)|dog
+ 0: (cat)|dog
+\= Expect no match
+    the cat sat
+No match
+
+/(cat)|dog/I,literal,optimization_none
+Capture group count = 0
+Options: literal
+Optimizations: <none>
+    (cat)|dog
+ 0: (cat)|dog
+\= Expect no match
+    the cat sat
+No match
+
+# These should result in errors, since it is not permitted to use the
+# PCRE2_NO_AUTO_POSSESS and PCRE2_NO_DOTSTAR_ANCHOR options on a literal pattern
+/(cat)|dog/literal,no_auto_possess
+Failed: error 192 at offset 0: invalid option bits with PCRE2_LITERAL
+
+/(cat)|dog/literal,no_dotstar_anchor
+Failed: error 192 at offset 0: invalid option bits with PCRE2_LITERAL
 
 /a whole line/match_line,multiline
     Rhubarb \na whole line\n custard
@@ -18049,12 +18402,14 @@ Subject length lower bound = 1
 /a?(?=b(*COMMIT)c|)d/I,no_start_optimize
 Capture group count = 0
 Options: no_start_optimize
+Optimizations: auto_possess,dotstar_anchor
     bd
 No match
 
 /(?=b(*COMMIT)c|)d/I,no_start_optimize
 Capture group count = 0
 Options: no_start_optimize
+Optimizations: auto_possess,dotstar_anchor
     bd
 No match
 
@@ -19060,7 +19415,134 @@ No match
     ac
 No match
 
+# Tests for pcre2_set_optimize()
+
+/abc/I,optimization_none
+Capture group count = 0
+Optimizations: <none>
+
+/abc/I,optimization_none,auto_possess
+Capture group count = 0
+Optimizations: auto_possess
+
+/abc/I,optimization_none,dotstar_anchor,auto_possess
+Capture group count = 0
+Optimizations: auto_possess,dotstar_anchor
+
+/abc/I,optimization_none,start_optimize
+Capture group count = 0
+Optimizations: start_optimize
+First code unit = 'a'
+Last code unit = 'c'
+Subject length lower bound = 3
+
+/abc/I,dotstar_anchor_off,optimization_full
+Capture group count = 0
+First code unit = 'a'
+Last code unit = 'c'
+Subject length lower bound = 3
+
+# If pcre2_set_optimize() is used to turn on some optimization, but at the same time,
+# the compile options word turns it off... the compile options word "wins":
+
+/abc/I,no_auto_possess,auto_possess
+Capture group count = 0
+Options: no_auto_possess
+Optimizations: dotstar_anchor,start_optimize
+First code unit = 'a'
+Last code unit = 'c'
+Subject length lower bound = 3
+
+/abc/I,no_dotstar_anchor,dotstar_anchor
+Capture group count = 0
+Options: no_dotstar_anchor
+Optimizations: auto_possess,start_optimize
+First code unit = 'a'
+Last code unit = 'c'
+Subject length lower bound = 3
+
+/abc/I,no_start_optimize,start_optimize
+Capture group count = 0
+Options: no_start_optimize
+Optimizations: auto_possess,dotstar_anchor
+
 # --------------
+
+# larger than GROUP_MAX, smaller than INT_MAX
+/a\800000b/
+Failed: error 161 at offset 8: subpattern number is too big
+
+# coming up on INT_MAX... (used to succeed with \8 being literal 8)
+/a\800000000b/
+Failed: error 161 at offset 11: subpattern number is too big
+
+# over INT_MAX (used to succeed with \8 being literal 8)
+/a\8000000000b/
+Failed: error 161 at offset 12: subpattern number is too big
+
+# --------------
+
+# no_bs0
+
+/a\0b\x00c\00d/
+    a\x{00}b\x{00}c\x{00}d
+ 0: a\x00b\x00c\x00d
+
+/a\0b/no_bs0
+Failed: error 198 at offset 3: octal digit missing after \0 (PCRE2_EXTRA_NO_BS0 is set)
+
+/b\x00c\00d/no_bs0
+    b\x{00}c\x{00}d
+ 0: b\x00c\x00d
+
+/abc/substitute_extended
+    abc\=replace=a\0b\x00c\00d
+ 1: a\x00b\x00c\x00d
+
+/abc/substitute_extended,no_bs0
+    abc\=replace=a\0b
+Failed: error -57 at offset 3 in replacement: bad escape sequence in replacement string
+    abc\=replace=b\x00c\00d
+ 1: b\x00c\x00d
+
+# python_octal
+
+/\0-\00-\01-\012-\0123-\123-\1234/
+    \x00-\x00-\x01-\o{12}-\o{12}3-\o{123}-\o{123}4
+ 0: \x00-\x00-\x01-\x0a-\x0a3-S-S4
+
+/\1/
+Failed: error 115 at offset 1: reference to non-existent subpattern
+
+/\12/
+    \o{12}
+ 0: \x0a
+
+/abc/substitute_extended
+    abc\=replace=\0-\00-\01-\012-\0123-\123-\1234
+ 1: \x00-\x00-\x01-\x0a-\x0a3-S-S4
+    abc\=replace=\1
+Failed: error -49 at offset 2 in replacement: unknown substring
+    abc\=replace=\12
+ 1: \x0a
+
+/\0-\00-\01-\012-\0123-\123-\1234/python_octal
+    \x00-\x00-\x01-\o{12}-\o{12}3-\o{123}-\o{123}4
+ 0: \x00-\x00-\x01-\x0a-\x0a3-S-S4
+
+/\1/python_octal
+Failed: error 115 at offset 1: reference to non-existent subpattern
+
+/\12/python_octal
+Failed: error 115 at offset 2: reference to non-existent subpattern
+
+/abc/substitute_extended,python_octal
+    abc\=replace=\0-\00-\01-\012-\0123-\123-\1234
+ 1: \x00-\x00-\x01-\x0a-\x0a3-S-S4
+    abc\=replace=\1
+Failed: error -49 at offset 2 in replacement: unknown substring
+    abc\=replace=\12
+Failed: error -49 at offset 3 in replacement: unknown substring
 
 # End of testinput2
 Error -70: PCRE2_ERROR_BADDATA (unknown error number)

@@ -8919,10 +8919,18 @@ No match
  1: <unset>
  2: B
  3: A
-    
-/^A\xZ/
-    A\0Z 
- 0: A\x00Z
+
+/^A\xBz/
+    A\x{0B}z
+ 0: A\x0bz
+
+/^A\xABz/
+    A\x{AB}z
+ 0: A\xabz
+
+/^A\xABCz/
+    A\x{AB}Cz
+ 0: A\xabCz
 
 /^A\o{123}B/
     A\123B
@@ -10159,7 +10167,22 @@ No match
 /\214748364/
     >\x{8c}748364<
  0: \x8c748364
-    
+
+# smaller than GROUP_MAX
+/\21300/
+    \x8b00
+ 0: \x8b00
+
+# larger than GROUP_MAX
+/\213000/
+    \x8b000
+ 0: \x8b000
+
+# larger than INT_MAX
+/\21300000000/
+    \x8b00000000
+ 0: \x8b00000000
+
 /a{65536/
     >a{65536<
  0: a{65536

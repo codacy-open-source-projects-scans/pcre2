@@ -5610,9 +5610,15 @@ name)/mark
 /^ (?:(?<A>A)|(?'B'B)(?<A>A)) (?('A')x) (?(<B>)y)$/x,dupnames
     Ax
     BAxy 
-    
-/^A\xZ/
-    A\0Z 
+
+/^A\xBz/
+    A\x{0B}z
+
+/^A\xABz/
+    A\x{AB}z
+
+/^A\xABCz/
+    A\x{AB}Cz
 
 /^A\o{123}B/
     A\123B
@@ -6415,7 +6421,19 @@ ef) x/x,mark
 
 /\214748364/
     >\x{8c}748364<
-    
+
+# smaller than GROUP_MAX
+/\21300/
+    \x8b00
+
+# larger than GROUP_MAX
+/\213000/
+    \x8b000
+
+# larger than INT_MAX
+/\21300000000/
+    \x8b00000000
+
 /a{65536/
     >a{65536<
 

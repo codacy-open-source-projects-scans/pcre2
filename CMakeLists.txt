@@ -192,11 +192,6 @@ CHECK_C_SOURCE_COMPILES(
 )
 
 CHECK_C_SOURCE_COMPILES(
-  "int main(void) { if (__builtin_expect(1+1, 2)) return 1; return 0; }"
-  HAVE_BUILTIN_EXPECT
-)
-
-CHECK_C_SOURCE_COMPILES(
   "#include <stddef.h>
    int main(void) { int a,b; size_t m; __builtin_mul_overflow(a,b,&m); return 0; }"
   HAVE_BUILTIN_MUL_OVERFLOW
@@ -618,6 +613,7 @@ SET(PCRE2_SOURCES
   ${PROJECT_BINARY_DIR}/pcre2_chartables.c
   src/pcre2_chkdint.c
   src/pcre2_compile.c
+  src/pcre2_compile_class.c
   src/pcre2_config.c
   src/pcre2_context.c
   src/pcre2_convert.c
