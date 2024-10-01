@@ -3303,6 +3303,15 @@ Failed: error 137 at offset 2: PCRE2 does not support \F, \L, \l, \N{name}, \U, 
 /\N{25,ab}/
 Failed: error 137 at offset 2: PCRE2 does not support \F, \L, \l, \N{name}, \U, or \u
 
+/[\N]/
+Failed: error 171 at offset 3: \N is not supported in a class
+
+/[\N{4}]/
+Failed: error 137 at offset 3: PCRE2 does not support \F, \L, \l, \N{name}, \U, or \u
+
+/[\N{name}]/
+Failed: error 137 at offset 3: PCRE2 does not support \F, \L, \l, \N{name}, \U, or \u
+
 /a{1,3}b/ungreedy
     ab
  0: ab
@@ -13860,6 +13869,10 @@ Failed: error -48: no more memory: 23 code units are needed
     apple lemon blackberry
  3: pear orange strawberry
 
+/"(*:fruit" 00 "juice)apple"/hex,g,replace=${*MARK}
+    apple lemon blackberry
+ 1: fruit\x00juice lemon blackberry
+
 /abc/
     123abc123\=replace=[9]XYZ
 Failed: error -48: no more memory
@@ -13907,6 +13920,10 @@ Failed: error -35 at offset 3 in replacement: invalid replacement string
 Failed: error -49 at offset 5 in replacement: unknown substring
     ZabcZ\=replace=>$<8><
 Failed: error -49 at offset 5 in replacement: unknown substring
+    ZabcZ\=replace=>\g<-1><
+Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement string
+    ZabcZ\=replace=>\g<0><
+ 1: Z>abc<Z
     ZabcZ\=replace=>\g<1><
  1: Z>b<Z
     ZabcZ\=replace=>\g< 1 ><
@@ -15245,6 +15262,20 @@ Failed: error -49 at offset 3 in replacement: unknown substring
 /a(?<namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1>b)c/substitute_extended
     abc\=replace=>${namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1}<
  1: >b<
+
+/abc/substitute_extended
+    abc\=replace=\a\b\e\f\n\r\t\v\\
+ 1: \x07\x08\x1b\x0c\x0a\x0d\x09\x0b\
+
+/a(b)c/
+    LabcR\=replace=>$&<
+ 1: L>abc<R
+    LabcR\=replace=>$`<
+ 1: L>L<R
+    LabcR\=replace=>$'<
+ 1: L>R<R
+    LabcR\=replace=>$_<
+ 1: L>LabcR<R
 
 /^(o(\1{72}{\"{\\{00000059079}\d*){74}}){19}/I
 Capture group count = 2

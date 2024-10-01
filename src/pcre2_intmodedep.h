@@ -723,6 +723,15 @@ typedef struct named_group {
   uint16_t     isdup;         /* TRUE if a duplicate */
 } named_group;
 
+/* Structure for caching sorted ranges. This improves the performance
+of translating META code to byte code. */
+
+typedef struct class_ranges {
+  struct class_ranges *next;  /* Next class ranges */
+  size_t range_list_size;     /* Size of ranges array */
+  /* Followed by the list of ranges (start/end pairs) */
+} class_ranges;
+
 /* Structure for passing "static" information around between the functions
 doing the compiling, so that they are thread-safe. */
 
@@ -740,6 +749,7 @@ typedef struct compile_block {
   PCRE2_SIZE workspace_size;       /* Size of workspace */
   PCRE2_SIZE small_ref_offset[10]; /* Offsets for \1 to \9 */
   PCRE2_SIZE erroroffset;          /* Offset of error in pattern */
+  uint8_t classbits[32];           /* Temporary store for classbits */
   uint16_t names_found;            /* Number of entries so far */
   uint16_t name_entry_size;        /* Size of each entry */
   uint16_t parens_depth;           /* Depth of nested parentheses */
@@ -757,8 +767,6 @@ typedef struct compile_block {
   uint32_t backref_map;            /* Bitmap of low back refs */
   uint32_t nltype;                 /* Newline type */
   uint32_t nllen;                  /* Newline string length */
-  uint32_t class_range_start;      /* Overall class range start */
-  uint32_t class_range_end;        /* Overall class range end */
   PCRE2_UCHAR nl[4];               /* Newline string when fixed length */
   uint32_t req_varyopt;            /* "After variable item" flag for reqbyte */
   uint32_t max_varlookbehind;      /* Limit for variable lookbehinds */
@@ -767,6 +775,10 @@ typedef struct compile_block {
   BOOL had_pruneorskip;            /* (*PRUNE) or (*SKIP) encountered */
   BOOL had_recurse;                /* Had a pattern recursion or subroutine call */
   BOOL dupnames;                   /* Duplicate names exist */
+#ifdef SUPPORT_WIDE_CHARS
+  class_ranges* cranges;           /* First class range. */
+  class_ranges* next_cranges;      /* Next class range. */
+#endif
 } compile_block;
 
 /* Structure for keeping the properties of the in-memory stack used

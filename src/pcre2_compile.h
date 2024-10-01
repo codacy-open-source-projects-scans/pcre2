@@ -173,10 +173,29 @@ therefore no need for it to have a length entry, so use a high value. */
 #define META_DATA(x)   (x & 0x0000ffffu)
 #define META_DIFF(x,y) ((x-y)>>16)
 
+/* Macro for the highest character value. */
+
+#if PCRE2_CODE_UNIT_WIDTH == 8
+#define MAX_UCHAR_VALUE 0xffu
+#elif PCRE2_CODE_UNIT_WIDTH == 16
+#define MAX_UCHAR_VALUE 0xffffu
+#else
+#define MAX_UCHAR_VALUE 0xffffffffu
+#endif
+
+/* Macro for setting individual bits in class bitmaps. */
+
+#define SETBIT(a,b) a[(b) >> 3] |= (uint8_t)(1u << ((b) & 0x7))
+
 /* Merge intersecting ranges of classes. */
 
-uint32_t *PRIV(optimize_class)(uint32_t *start_ptr, uint32_t options,
-  size_t *buffer_size, compile_block* cb);
+class_ranges *PRIV(optimize_class)(uint32_t *start_ptr,
+  uint32_t options, compile_block* cb);
+
+/* Set bits in classbits according to the property type */
+
+void PRIV(update_classbits)(uint32_t ptype, uint32_t pdata, BOOL negated,
+  uint8_t *classbits);
 
 #endif  /* PCRE2_COMPILE_H_IDEMPOTENT_GUARD */
 

@@ -931,6 +931,12 @@
 
 /\N{25,ab}/
 
+/[\N]/
+
+/[\N{4}]/
+
+/[\N{name}]/
+
 /a{1,3}b/ungreedy
     ab
 
@@ -4208,6 +4214,9 @@
 /(*:pear)apple|(*:orange)lemon|(*:strawberry)blackberry/g,replace=[23]${*MARK}
     apple lemon blackberry
 
+/"(*:fruit" 00 "juice)apple"/hex,g,replace=${*MARK}
+    apple lemon blackberry
+
 /abc/
     123abc123\=replace=[9]XYZ
     123abc123\=substitute_overflow_length,replace=[9]XYZ
@@ -4234,6 +4243,8 @@
     ZabcZ\=replace=>$< 1 ><
     ZabcZ\=replace=>$<2><
     ZabcZ\=replace=>$<8><
+    ZabcZ\=replace=>\g<-1><
+    ZabcZ\=replace=>\g<0><
     ZabcZ\=replace=>\g<1><
     ZabcZ\=replace=>\g< 1 ><
     ZabcZ\=replace=>\g<2><
@@ -4802,6 +4813,15 @@ B)x/alt_verbnames,mark
 
 /a(?<namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1>b)c/substitute_extended
     abc\=replace=>${namedverylongbutperfectlylegalsoyoushouldnthaveaproblem_1}<
+
+/abc/substitute_extended
+    abc\=replace=\a\b\e\f\n\r\t\v\\
+
+/a(b)c/
+    LabcR\=replace=>$&<
+    LabcR\=replace=>$`<
+    LabcR\=replace=>$'<
+    LabcR\=replace=>$_<
 
 /^(o(\1{72}{\"{\\{00000059079}\d*){74}}){19}/I
 

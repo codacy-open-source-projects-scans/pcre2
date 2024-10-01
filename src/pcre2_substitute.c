@@ -143,6 +143,8 @@ for (; ptr < ptrend; ptr++)
     switch(erc)
       {
       case 0:      /* Data character */
+      case ESC_b:  /* Data character */
+      case ESC_v:  /* Data character */
       case ESC_E:  /* Isolated \E is ignored */
       break;
 
@@ -512,8 +514,9 @@ do
 
     save_start = start_offset++;
     if (subject[start_offset-1] == CHAR_CR &&
-        code->newline_convention != PCRE2_NEWLINE_CR &&
-        code->newline_convention != PCRE2_NEWLINE_LF &&
+        (code->newline_convention == PCRE2_NEWLINE_CRLF ||
+         code->newline_convention == PCRE2_NEWLINE_ANY ||
+         code->newline_convention == PCRE2_NEWLINE_ANYCRLF) &&
         start_offset < length &&
         subject[start_offset] == CHAR_LF)
       start_offset++;
@@ -647,6 +650,7 @@ do
       BOOL star;
       PCRE2_SIZE sublength;
       PCRE2_UCHAR next;
+      PCRE2_SPTR subptr, subptrend;
 
       if (++ptr >= repend) goto BAD;
       if ((next = *ptr) == CHAR_DOLLAR_SIGN) goto LOADLITERAL;
@@ -660,6 +664,43 @@ do
       inparens = FALSE;
       inangle = FALSE;
       star = FALSE;
+      subptr = NULL;
+      subptrend = NULL;
+
+      /* Special $ sequences, as supported by Perl, JavaScript, .NET and others. */
+      if (next == CHAR_AMPERSAND)
+        {
+        ++ptr;
+        group = 0;
+        goto GROUP_SUBSTITUTE;
+        }
+      if (next == CHAR_GRAVE_ACCENT || next == CHAR_APOSTROPHE)
+        {
+        ++ptr;
+        rc = pcre2_substring_length_bynumber(match_data, 0, &sublength);
+        if (rc < 0) goto PTREXIT; /* (Sanity-check ovector before reading from it.) */
+
+        if (next == CHAR_GRAVE_ACCENT)
+          {
+          subptr = subject;
+          subptrend = subject + ovector[0];
+          }
+        else
+          {
+          subptr = subject + ovector[1];
+          subptrend = subject + length;
+          }
+
+        goto SUBPTR_SUBSTITUTE;
+        }
+      if (next == CHAR_UNDERSCORE)
+        {
+        /* Java, .NET support $_ for "entire input string". */
+        ++ptr;
+        subptr = subject;
+        subptrend = subject + length;
+        goto SUBPTR_SUBSTITUTE;
+        }
 
       if (next == CHAR_LEFT_CURLY_BRACKET)
         {
@@ -691,7 +732,7 @@ do
           {
           next = *ptr;
           if (next < CHAR_0 || next > CHAR_9) break;
-          group = group * 10 + next - CHAR_0;
+          group = group * 10 + (next - CHAR_0);
 
           /* A check for a number greater than the hightest captured group
           is sufficient here; no need for a separate overflow check. If unknown
@@ -784,10 +825,10 @@ do
           PCRE2_SPTR mark = pcre2_get_mark(match_data);
           if (mark != NULL)
             {
-            PCRE2_SPTR mark_start = mark;
-            while (*mark != 0) mark++;
-            fraglength = mark - mark_start;
-            CHECKMEMCPY(mark_start, fraglength);
+            /* Peek backwards one code unit to obtain the length of the mark.
+            It can (theoretically) contain an embedded NUL. */
+            fraglength = mark[-1];
+            CHECKMEMCPY(mark, fraglength);
             }
           }
         else goto BAD;
@@ -798,8 +839,6 @@ do
 
       else
         {
-        PCRE2_SPTR subptr, subptrend;
-
         GROUP_SUBSTITUTE:
         /* Find a number for a named group. In case there are duplicate names,
         search for the first one that is set. If the name is not found when
@@ -897,6 +936,7 @@ do
 
         /* Substitute a literal string, possibly forcing alphabetic case. */
 
+        SUBPTR_SUBSTITUTE:
         while (subptr < subptrend)
           {
           GETCHARINCTEST(ch, subptr);
@@ -1000,6 +1040,14 @@ do
         case 0:      /* Data character */
         goto LITERAL;
 
+        case ESC_b:
+        ch = CHAR_BS;    /* \b is backspace in a substitution */
+        goto LITERAL;
+
+        case ESC_v:
+        ch = CHAR_VT;    /* \v is vertical tab in a substitution */
+        goto LITERAL;
+
         case ESC_g:
           {
           PCRE2_SIZE name_len;
@@ -1030,7 +1078,7 @@ do
         if (rc < 0)
           {
           special = 0;
-          group = -rc;
+          group = -rc - 1;
           goto GROUP_SUBSTITUTE;
           }
         goto BADESCAPE;

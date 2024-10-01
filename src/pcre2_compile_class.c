@@ -78,8 +78,12 @@ while (TRUE)
 
 #ifdef SUPPORT_UNICODE
 
-#define PARSE_CLASS_CASELESS_UTF      0x1
-#define PARSE_CLASS_RESTRICTED_UTF    0x2
+#define PARSE_CLASS_UTF               0x1
+#define PARSE_CLASS_CASELESS_UTF      0x2
+#define PARSE_CLASS_RESTRICTED_UTF    0x4
+
+/* Get the range of nocase characters which includes the
+'c' character passed as argument, or directly follows 'c'. */
 
 static const uint32_t*
 get_nocase_range(uint32_t c)
@@ -104,6 +108,9 @@ while (TRUE)
   }
 }
 
+/* Get the list of othercase characters, which belongs to the passed range.
+Create ranges from these characters, and append them to the buffer argument. */
+
 static size_t
 utf_caseless_extend(uint32_t start, uint32_t end, uint32_t options,
   uint32_t *buffer)
@@ -117,6 +124,10 @@ size_t result = 2;
 const uint32_t *skip_range = get_nocase_range(c);
 uint32_t skip_start = skip_range[0];
 
+#if PCRE2_CODE_UNIT_WIDTH == 8
+PCRE2_ASSERT(options & PARSE_CLASS_UTF);
+#endif
+
 #if PCRE2_CODE_UNIT_WIDTH == 32
 if (end > MAX_UTF_CODE_POINT) end = MAX_UTF_CODE_POINT;
 #endif
@@ -124,7 +135,7 @@ if (end > MAX_UTF_CODE_POINT) end = MAX_UTF_CODE_POINT;
 while (c <= end)
   {
   uint32_t co;
-    
+
   if (c > skip_start)
     {
     c = skip_range[1];
@@ -157,6 +168,10 @@ while (c <= end)
   /* Add characters. */
   do
     {
+#if PCRE2_CODE_UNIT_WIDTH == 16
+    if (!(options & PARSE_CLASS_UTF) && *list > 0xffff) continue;
+#endif
+
     if (*list < new_start)
       {
       if (*list + 1 == new_start)
@@ -197,14 +212,107 @@ while (c <= end)
 
 #endif
 
+/* Add a character list to a buffer. */
+
+static size_t
+append_char_list(const uint32_t *p, uint32_t *buffer)
+{
+const uint32_t *n;
+size_t result = 0;
+
+while (*p != NOTACHAR)
+  {
+  n = p;
+  while (n[0] == n[1] - 1) n++;
+
+  PCRE2_ASSERT(*p < 0xffff);
+
+  if (buffer != NULL)
+    {
+    buffer[0] = *p;
+    buffer[1] = *n;
+    buffer += 2;
+    }
+
+  result += 2;
+  p = n + 1;
+  }
+
+  return result;
+}
+
+static uint32_t
+get_highest_char(uint32_t options)
+{
+(void)options; /* Avoid compiler warning. */
+
+#if PCRE2_CODE_UNIT_WIDTH == 8
+return MAX_UTF_CODE_POINT;
+#else
+#ifdef SUPPORT_UNICODE
+return (options & PARSE_CLASS_UTF) ? MAX_UTF_CODE_POINT : MAX_UCHAR_VALUE;
+#else
+return MAX_UCHAR_VALUE;
+#endif
+#endif
+}
+
+/* Add a negated character list to a buffer. */
+static size_t
+append_negated_char_list(const uint32_t *p, uint32_t options, uint32_t *buffer)
+{
+const uint32_t *n;
+uint32_t start = 0;
+size_t result = 2;
+
+PCRE2_ASSERT(*p > 0);
+
+while (*p != NOTACHAR)
+  {
+  n = p;
+  while (n[0] == n[1] - 1) n++;
+
+  PCRE2_ASSERT(*p < 0xffff);
+
+  if (buffer != NULL)
+    {
+    buffer[0] = start;
+    buffer[1] = *p - 1;
+    buffer += 2;
+    }
+
+  result += 2;
+  start = *n + 1;
+  p = n + 1;
+  }
+
+  if (buffer != NULL)
+    {
+    buffer[0] = start;
+    buffer[1] = get_highest_char(options);
+    buffer += 2;
+    }
+
+  return result;
+}
+
+static uint32_t *
+append_non_ascii_range(uint32_t options, uint32_t *buffer)
+{
+  if (buffer == NULL) return NULL;
+
+  buffer[0] = 0x100;
+  buffer[1] = get_highest_char(options);
+  return buffer + 2;
+}
+
 static size_t
 parse_class(uint32_t *ptr, uint32_t options, uint32_t *buffer)
 {
 size_t total_size = 0;
+size_t size;
 uint32_t meta_arg;
 uint32_t start_char;
-
-(void)options; /* Avoid compiler warning. */
 
 while (*ptr != META_CLASS_END)
   {
@@ -212,11 +320,52 @@ while (*ptr != META_CLASS_END)
     {
     case META_ESCAPE:
       meta_arg = META_DATA(*ptr);
-      if (meta_arg == ESC_P || meta_arg == ESC_p) ptr++;
+      switch (meta_arg)
+        {
+        case ESC_D:
+        case ESC_W:
+        case ESC_S:
+        buffer = append_non_ascii_range(options, buffer);
+        total_size += 2;
+        break;
+
+        case ESC_h:
+        size = append_char_list(PRIV(hspace_list), buffer);
+        total_size += size;
+        if (buffer != NULL) buffer += size;
+        break;
+
+        case ESC_H:
+        size = append_negated_char_list(PRIV(hspace_list), options, buffer);
+        total_size += size;
+        if (buffer != NULL) buffer += size;
+        break;
+
+        case ESC_v:
+        size = append_char_list(PRIV(vspace_list), buffer);
+        total_size += size;
+        if (buffer != NULL) buffer += size;
+        break;
+
+        case ESC_V:
+        size = append_negated_char_list(PRIV(vspace_list), options, buffer);
+        total_size += size;
+        if (buffer != NULL) buffer += size;
+        break;
+
+        case ESC_p:
+        case ESC_P:
+        ptr++;
+        break;
+        }
       ptr++;
       continue;
-    case META_POSIX:
     case META_POSIX_NEG:
+      buffer = append_non_ascii_range(options, buffer);
+      total_size += 2;
+      ptr += 2;
+      continue;
+    case META_POSIX:
       ptr += 2;
       continue;
     case META_BIGVALUE:
@@ -236,12 +385,16 @@ while (*ptr != META_CLASS_END)
       PCRE2_ASSERT(*ptr < META_END || *ptr == META_BIGVALUE);
 
       if (*ptr == META_BIGVALUE) ptr++;
+
+#ifdef EBCDIC
+#error "Missing EBCDIC support"
+#endif
       }
 
 #ifdef SUPPORT_UNICODE
     if (options & PARSE_CLASS_CASELESS_UTF)
       {
-      size_t size = utf_caseless_extend(start_char, *ptr++, options, buffer);
+      size = utf_caseless_extend(start_char, *ptr++, options, buffer);
       if (buffer != NULL) buffer += size;
       total_size += size;
       continue;
@@ -262,56 +415,63 @@ while (*ptr != META_CLASS_END)
   return total_size;
 }
 
-uint32_t *PRIV(optimize_class)(uint32_t *start_ptr, uint32_t options,
-  size_t *buffer_size, compile_block* cb)
+class_ranges *PRIV(optimize_class)(uint32_t *start_ptr,
+  uint32_t options, compile_block* cb)
 {
+class_ranges* cranges;
 uint32_t *ptr = start_ptr + 1;
 uint32_t *buffer;
 uint32_t *dst;
-size_t size = 0, i;
+uint32_t class_options = 0;
+size_t range_list_size = 0, i;
 uint32_t tmp1, tmp2;
 
 PCRE2_ASSERT(*start_ptr == META_CLASS || *start_ptr == META_CLASS_NOT);
 
 #ifdef SUPPORT_UNICODE
+if (options & PCRE2_UTF)
+  class_options |= PARSE_CLASS_UTF;
+
 if ((options & PCRE2_CASELESS) && (options & (PCRE2_UTF|PCRE2_UCP)))
-  options = PARSE_CLASS_CASELESS_UTF;
-else
-  options = 0;
+  class_options |= PARSE_CLASS_CASELESS_UTF;
 
 if (cb->cx->extra_options & PCRE2_EXTRA_CASELESS_RESTRICT)
-  options |= PARSE_CLASS_RESTRICTED_UTF;
+  class_options |= PARSE_CLASS_RESTRICTED_UTF;
 #endif
 
 /* Compute required space for the range. */
 
-size = parse_class(start_ptr + 1, options, NULL);
+range_list_size = parse_class(start_ptr + 1, class_options, NULL);
 
-*buffer_size = size;
-if (size == 0) return NULL;
+/* Allocate buffer. */
 
-/* Allocate and buffer. */
+cranges = cb->cx->memctl.malloc(
+  sizeof(class_ranges) + range_list_size * sizeof(uint32_t),
+  cb->cx->memctl.memory_data);
 
-buffer = (uint32_t*)
-  cb->cx->memctl.malloc(size * sizeof(uint32_t), cb->cx->memctl.memory_data);
+if (cranges == NULL) return NULL;
 
-if (buffer == NULL) return NULL;
+cranges->next = NULL;
+cranges->range_list_size = range_list_size;
 
-parse_class(start_ptr + 1, options, buffer);
+if (range_list_size == 0) return cranges;
 
-if (size == 2) return buffer;
+buffer = (uint32_t*)(cranges + 1);
+parse_class(start_ptr + 1, class_options, buffer);
+
+if (range_list_size == 2) return cranges;
 
 /* In-place sorting of ranges. */
 
-i = (((size >> 2) - 1) << 1);
+i = (((range_list_size >> 2) - 1) << 1);
 while (TRUE)
   {
-  do_heapify(buffer, size, i);
+  do_heapify(buffer, range_list_size, i);
   if (i == 0) break;
   i -= 2;
   }
 
-i = size - 2;
+i = range_list_size - 2;
 while (TRUE)
   {
   tmp1 = buffer[i];
@@ -329,12 +489,12 @@ while (TRUE)
 /* Merge ranges whenever possible. */
 dst = buffer;
 ptr = buffer + 2;
-size -= 2;
+range_list_size -= 2;
 
 /* The second condition is a very rare corner case, where the end of the last
 range is the maximum character. This range cannot be extended further. */
 
-while (size > 0 && dst[1] != ~(uint32_t)0)
+while (range_list_size > 0 && dst[1] != ~(uint32_t)0)
   {
   if (dst[1] + 1 < ptr[0])
     {
@@ -345,13 +505,135 @@ while (size > 0 && dst[1] != ~(uint32_t)0)
   else if (dst[1] < ptr[1]) dst[1] = ptr[1];
 
   ptr += 2;
-  size -= 2;
+  range_list_size -= 2;
   }
 
-*buffer_size = (size_t)(dst + 2 - buffer);
-return buffer;
+cranges->range_list_size = (size_t)(dst + 2 - buffer);
+
+PCRE2_ASSERT(dst[1] <= get_highest_char(class_options));
+return cranges;
 }
 
 #endif /* SUPPORT_WIDE_CHARS */
+
+#ifdef SUPPORT_UNICODE
+
+void PRIV(update_classbits)(uint32_t ptype, uint32_t pdata, BOOL negated,
+  uint8_t *classbits)
+{
+/* Update PRIV(xclass) when this function is changed. */
+int c, chartype;
+const ucd_record *prop;
+uint32_t gentype;
+BOOL set_bit;
+
+if (ptype == PT_ANY)
+  {
+  if (!negated) memset(classbits, 0xff, 32 * sizeof(uint8_t));
+  return;
+  }
+
+for (c = 0; c < 256; c++)
+  {
+  prop = GET_UCD(c);
+  set_bit = FALSE;
+
+  switch (ptype)
+    {
+    case PT_LAMP:
+    chartype = prop->chartype;
+    set_bit = (chartype == ucp_Lu || chartype == ucp_Ll || chartype == ucp_Lt);
+    break;
+
+    case PT_GC:
+    set_bit = (PRIV(ucp_gentype)[prop->chartype] == pdata);
+    break;
+
+    case PT_PC:
+    set_bit = (prop->chartype == pdata);
+    break;
+
+    case PT_SC:
+    set_bit = (prop->script == pdata);
+    break;
+
+    case PT_SCX:
+    set_bit = (prop->script == pdata ||
+      MAPBIT(PRIV(ucd_script_sets) + UCD_SCRIPTX_PROP(prop), pdata) != 0);
+    break;
+
+    case PT_ALNUM:
+    gentype = PRIV(ucp_gentype)[prop->chartype];
+    set_bit = (gentype == ucp_L || gentype == ucp_N);
+    break;
+
+    case PT_SPACE:    /* Perl space */
+    case PT_PXSPACE:  /* POSIX space */
+    switch(c)
+      {
+      HSPACE_BYTE_CASES:
+      VSPACE_BYTE_CASES:
+      set_bit = TRUE;
+      break;
+
+      default:
+      set_bit = (PRIV(ucp_gentype)[prop->chartype] == ucp_Z);
+      break;
+      }
+    break;
+
+    case PT_WORD:
+    chartype = prop->chartype;
+    gentype = PRIV(ucp_gentype)[chartype];
+    set_bit = (gentype == ucp_L || gentype == ucp_N ||
+               chartype == ucp_Mn || chartype == ucp_Pc);
+    break;
+
+    case PT_UCNC:
+    set_bit = (c == CHAR_DOLLAR_SIGN || c == CHAR_COMMERCIAL_AT ||
+               c == CHAR_GRAVE_ACCENT || c >= 0xa0);
+    break;
+
+    case PT_BIDICL:
+    set_bit = (UCD_BIDICLASS_PROP(prop) == pdata);
+    break;
+
+    case PT_BOOL:
+    set_bit = MAPBIT(PRIV(ucd_boolprop_sets) +
+                     UCD_BPROPS_PROP(prop), pdata) != 0;
+    break;
+
+    case PT_PXGRAPH:
+    chartype = prop->chartype;
+    gentype = PRIV(ucp_gentype)[chartype];
+    set_bit = (gentype != ucp_Z && (gentype != ucp_C || chartype == ucp_Cf));
+    break;
+
+    case PT_PXPRINT:
+    chartype = prop->chartype;
+    set_bit = (chartype != ucp_Zl && chartype != ucp_Zp &&
+       (PRIV(ucp_gentype)[chartype] != ucp_C || chartype == ucp_Cf));
+    break;
+
+    case PT_PXPUNCT:
+    gentype = PRIV(ucp_gentype)[prop->chartype];
+    set_bit = (gentype == ucp_P || (c < 128 && gentype == ucp_S));
+    break;
+
+    default:
+    PCRE2_ASSERT(ptype == PT_PXXDIGIT);
+    set_bit = (c >= CHAR_0 && c <= CHAR_9) ||
+              (c >= CHAR_A && c <= CHAR_F) ||
+              (c >= CHAR_a && c <= CHAR_f);
+    break;
+    }
+
+  if (negated) set_bit = !set_bit;
+  if (set_bit) *classbits |= (uint8_t)(1 << (c & 0x7));
+  if ((c & 0x7) == 0x7) classbits++;
+  }
+}
+
+#endif /* SUPPORT_UNICODE */
 
 /* End of pcre2_compile_class.c */
