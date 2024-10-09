@@ -217,6 +217,7 @@ claim to be C99 don't support it (hence DISABLE_PERCENT_ZT). */
 #define PARENS_NEST_DEFAULT 220   /* Default parentheses nest limit */
 #define PATSTACKSIZE 20           /* Pattern stack for save/restore testing */
 #define REPLACE_MODSIZE 100       /* Field for reading 8-bit replacement */
+#define REPLACE_CASE_MODSIZE 24   /* Field for reading 8-bit case-replacement */
 #define VERSION_SIZE 64           /* Size of buffer for the version strings */
 
 /* Default JIT compile options */
@@ -574,7 +575,8 @@ typedef struct patctl {       /* Structure for pattern modifiers. */
   uint32_t  control;          /* Must be in same position as datctl */
   uint32_t  control2;         /* Must be in same position as datctl */
   uint32_t  jitstack;         /* Must be in same position as datctl */
-   uint8_t  replacement[REPLACE_MODSIZE];  /* So must this */
+   uint8_t  replacement[REPLACE_MODSIZE];            /* So must this */
+   uint8_t  replacement_case[REPLACE_CASE_MODSIZE];  /* So must this */
   uint32_t  substitute_skip;  /* Must be in same position as patctl */
   uint32_t  substitute_stop;  /* Must be in same position as patctl */
   uint32_t  jit;
@@ -596,7 +598,8 @@ typedef struct datctl {       /* Structure for data line modifiers. */
   uint32_t  control;          /* Must be in same position as patctl */
   uint32_t  control2;         /* Must be in same position as patctl */
   uint32_t  jitstack;         /* Must be in same position as patctl */
-   uint8_t  replacement[REPLACE_MODSIZE];  /* So must this */
+   uint8_t  replacement[REPLACE_MODSIZE];            /* So must this */
+   uint8_t  replacement_case[REPLACE_CASE_MODSIZE];  /* So must this */
   uint32_t  substitute_skip;  /* Must be in same position as patctl */
   uint32_t  substitute_stop;  /* Must be in same position as patctl */
   uint32_t  startend[2];
@@ -730,6 +733,7 @@ static modstruct modlist[] = {
   { "memory",                      MOD_PD,   MOD_CTL, CTL_MEMORY,                 PD(control) },
   { "multiline",                   MOD_PATP, MOD_OPT, PCRE2_MULTILINE,            PO(options) },
   { "never_backslash_c",           MOD_PAT,  MOD_OPT, PCRE2_NEVER_BACKSLASH_C,    PO(options) },
+  { "never_callout",               MOD_CTC,  MOD_OPT, PCRE2_EXTRA_NEVER_CALLOUT,  CO(extra_options) },
   { "never_ucp",                   MOD_PAT,  MOD_OPT, PCRE2_NEVER_UCP,            PO(options) },
   { "never_utf",                   MOD_PAT,  MOD_OPT, PCRE2_NEVER_UTF,            PO(options) },
   { "newline",                     MOD_CTC,  MOD_NL,  0,                          CO(newline_convention) },
@@ -775,6 +779,7 @@ static modstruct modlist[] = {
   { "startoffset",                 MOD_DAT,  MOD_INT, 0,                          DO(offset) },
   { "subject_literal",             MOD_PATP, MOD_CTL, CTL2_SUBJECT_LITERAL,       PO(control2) },
   { "substitute_callout",          MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_CALLOUT,    PO(control2) },
+  { "substitute_case_callout",     MOD_PND,  MOD_STR, REPLACE_CASE_MODSIZE,       PO(replacement_case) },
   { "substitute_extended",         MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_EXTENDED,   PO(control2) },
   { "substitute_literal",          MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_LITERAL,    PO(control2) },
   { "substitute_matched",          MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_MATCHED,    PO(control2) },
@@ -1493,6 +1498,14 @@ are supported. */
     pcre2_set_substitute_callout_32(G(a,32), \
       (int (*)(pcre2_substitute_callout_block_32 *, void *))b,c)
 
+#define PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(a,b,c) \
+  if (test_mode == PCRE8_MODE) \
+    pcre2_set_substitute_case_callout_8(G(a,8),b,c); \
+  else if (test_mode == PCRE16_MODE) \
+    pcre2_set_substitute_case_callout_16(G(a,16),b,c); \
+  else \
+    pcre2_set_substitute_case_callout_32(G(a,32),b,c)
+
 #define PCRE2_SUBSTITUTE(a,b,c,d,e,f,g,h,i,j,k,l) \
   if (test_mode == PCRE8_MODE) \
     a = pcre2_substitute_8(G(b,8),(PCRE2_SPTR8)c,d,e,f,G(g,8),h, \
@@ -1994,6 +2007,12 @@ the three different cases. */
     G(pcre2_set_substitute_callout_,BITTWO)(G(a,BITTWO), \
       (int (*)(G(pcre2_substitute_callout_block_,BITTWO) *, void *))b,c)
 
+#define PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(a,b,c) \
+  if (test_mode == G(G(PCRE,BITONE),_MODE)) \
+    G(pcre2_set_substitute_case_callout_,BITONE)(G(a,BITONE),b,c); \
+  else \
+    G(pcre2_set_substitute_case_callout_,BITTWO)(G(a,BITTWO),b,c)
+
 #define PCRE2_SUBSTITUTE(a,b,c,d,e,f,g,h,i,j,k,l) \
   if (test_mode == G(G(PCRE,BITONE),_MODE)) \
     a = G(pcre2_substitute_,BITONE)(G(b,BITONE),(G(PCRE2_SPTR,BITONE))c,d,e,f, \
@@ -2202,6 +2221,8 @@ the three different cases. */
 #define PCRE2_SET_SUBSTITUTE_CALLOUT(a,b,c) \
   pcre2_set_substitute_callout_8(G(a,8), \
     (int (*)(pcre2_substitute_callout_block_8 *, void *))b,c)
+#define PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(a,b,c) \
+  pcre2_set_substitute_case_callout_8(G(a,8),b,c)
 #define PCRE2_SUBSTITUTE(a,b,c,d,e,f,g,h,i,j,k,l) \
   a = pcre2_substitute_8(G(b,8),(PCRE2_SPTR8)c,d,e,f,G(g,8),h, \
     (PCRE2_SPTR8)i,j,(PCRE2_UCHAR8 *)k,l)
@@ -2311,6 +2332,8 @@ the three different cases. */
 #define PCRE2_SET_SUBSTITUTE_CALLOUT(a,b,c) \
   pcre2_set_substitute_callout_16(G(a,16), \
     (int (*)(pcre2_substitute_callout_block_16 *, void *))b,c)
+#define PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(a,b,c) \
+  pcre2_set_substitute_case_callout_16(G(a,16),b,c)
 #define PCRE2_SUBSTITUTE(a,b,c,d,e,f,g,h,i,j,k,l) \
   a = pcre2_substitute_16(G(b,16),(PCRE2_SPTR16)c,d,e,f,G(g,16),h, \
     (PCRE2_SPTR16)i,j,(PCRE2_UCHAR16 *)k,l)
@@ -2420,6 +2443,8 @@ the three different cases. */
 #define PCRE2_SET_SUBSTITUTE_CALLOUT(a,b,c) \
   pcre2_set_substitute_callout_32(G(a,32), \
     (int (*)(pcre2_substitute_callout_block_32 *, void *))b,c)
+#define PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(a,b,c) \
+  pcre2_set_substitute_case_callout_32(G(a,32),b,c)
 #define PCRE2_SUBSTITUTE(a,b,c,d,e,f,g,h,i,j,k,l) \
   a = pcre2_substitute_32(G(b,32),(PCRE2_SPTR32)c,d,e,f,G(g,32),h, \
     (PCRE2_SPTR32)i,j,(PCRE2_UCHAR32 *)k,l)
@@ -3600,7 +3625,7 @@ for (;;)
     }
   }
 
-  PCRE2_UNREACHABLE(); /* Control never reaches here */
+PCRE2_UNREACHABLE(); /* Control never reaches here */
 }
 
 
@@ -4369,7 +4394,7 @@ show_compile_extra_options(uint32_t options, const char *before,
   const char *after)
 {
 if (options == 0) fprintf(outfile, "%s <none>%s", before, after);
-else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
   before,
   ((options & PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK) != 0) ? " allow_lookaround_bsk" : "",
   ((options & PCRE2_EXTRA_ALLOW_SURROGATE_ESCAPES) != 0)? " allow_surrogate_escapes" : "",
@@ -4384,6 +4409,7 @@ else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
   ((options & PCRE2_EXTRA_ESCAPED_CR_IS_LF) != 0)? " escaped_cr_is_lf" : "",
   ((options & PCRE2_EXTRA_MATCH_WORD) != 0)? " match_word" : "",
   ((options & PCRE2_EXTRA_MATCH_LINE) != 0)? " match_line" : "",
+  ((options & PCRE2_EXTRA_NEVER_CALLOUT) != 0)? " never_callout" : "",
   ((options & PCRE2_EXTRA_NO_BS0) != 0)? " no_bs0" : "",
   ((options & PCRE2_EXTRA_PYTHON_OCTAL) != 0)? " python_octal" : "",
   after);
@@ -6438,6 +6464,68 @@ return yield;
 
 
 /*************************************************
+*        Substitute case callout function        *
+*************************************************/
+
+/* Called from pcre2_substitute() when the substitute_case_callout
+modifier is set. The user-data is a uint8_t UTF-8 buffer of
+characters, containing data for the case conversion.
+
+Arguments:
+  ch          the input character
+  to          the case conversion type
+  data_ptr    callout data, which will be a UTF-8 string
+
+Returns:      the new character
+*/
+
+static uint32_t
+substitute_case_callout_function(uint32_t ch, int to, void *data_ptr)
+{
+uint32_t c;
+uint8_t *pr = (uint8_t *)data_ptr;
+int skip = 0;
+BOOL test_or_return = TRUE;
+
+/* The input string should have a multiple of four characters.
+Each four-character block is parsed as a character list of the form
+"<input><lower><upper><title>". Standard ASCII replacements would look
+like: "aaAA...AaAA...". */
+while ((c = *pr++) != 0)
+  {
+  if (HASUTF8EXTRALEN(c)) { GETUTF8INC(c, pr); }
+
+  if (skip != 0)
+    {
+    --skip;
+    }
+  else if (test_or_return)
+    {
+    /* In "test" state we are searching for a block of four characters, where
+    the first character matches the input. */
+    if (c == ch)
+      {
+      test_or_return = FALSE;
+      skip = to;
+      }
+    else
+      {
+      skip = 3;
+      }
+    }
+  else
+    {
+    /* In "return" state we are skipping UTF-8 characters until we reach the
+    one that we want to return (we are in a matching block). */
+    return c;
+    }
+  }
+
+return ch;
+}
+
+
+/*************************************************
 *              Callout function                  *
 *************************************************/
 
@@ -6960,6 +7048,7 @@ memcpy(&dat_datctl, &def_datctl, sizeof(datctl));
 dat_datctl.control |= (pat_patctl.control & CTL_ALLPD);
 dat_datctl.control2 |= (pat_patctl.control2 & CTL2_ALLPD);
 strcpy((char *)dat_datctl.replacement, (char *)pat_patctl.replacement);
+strcpy((char *)dat_datctl.replacement_case, (char *)pat_patctl.replacement_case);
 if (dat_datctl.jitstack == 0) dat_datctl.jitstack = pat_patctl.jitstack;
 
 if (dat_datctl.substitute_skip == 0)
@@ -7174,10 +7263,10 @@ while ((c = *p++) != 0)
     break;
 
     case 'x':
+    c = 0;
     if (*p == '{')
       {
       uint8_t *pt = p;
-      c = 0;
 
       /* We used to have "while (isxdigit(*(++pt)))" here, but it fails
       when isxdigit() is a macro that refers to its argument more than
@@ -7187,36 +7276,41 @@ while ((c = *p++) != 0)
       for (pt++; isxdigit(*pt); pt++)
         {
         if (++i == 9)
+          {
           fprintf(outfile, "** Too many hex digits in \\x{...} item; "
                            "using only the first eight.\n");
-        else c = c * 16 + (tolower(*pt) - ((isdigit(*pt))? '0' : 'a' - 10));
+          while (isxdigit(*pt)) pt++;
+          break;
+          }
+        else c = c * 16 + (tolower(*pt) - (isdigit(*pt)? '0' : 'a' - 10));
         }
-      if (*pt == '}')
+      if (i == 0 || *pt != '}')
         {
-        p = pt + 1;
-        break;
+        fprintf(outfile, "** Malformed \\x{ escape\n");
+        return PR_OK;
         }
-      /* Not correct form for \x{...}; fall through */
+      else p = pt + 1;
       }
-
-    /* \x without {} always defines just one byte in 8-bit mode. This
-    allows UTF-8 characters to be constructed byte by byte, and also allows
-    invalid UTF-8 sequences to be made. Just copy the byte in UTF-8 mode.
-    Otherwise, pass it down as data. */
-
-    c = 0;
-    while (i++ < 2 && isxdigit(*p))
+    else
       {
-      c = c * 16 + (tolower(*p) - ((isdigit(*p))? '0' : 'a' - 10));
-      p++;
-      }
+      /* \x without {} always defines just one byte in 8-bit mode. This
+      allows UTF-8 characters to be constructed byte by byte, and also allows
+      invalid UTF-8 sequences to be made. Just copy the byte in UTF-8 mode.
+      Otherwise, pass it down as data. */
+
+      while (i++ < 2 && isxdigit(*p))
+        {
+        c = c * 16 + (tolower(*p) - (isdigit(*p)? '0' : 'a' - 10));
+        p++;
+        }
 #if defined SUPPORT_PCRE2_8
-    if (utf && (test_mode == PCRE8_MODE))
-      {
-      *q8++ = c;
-      continue;
-      }
+      if (utf && (test_mode == PCRE8_MODE))
+        {
+        *q8++ = c;
+        continue;
+        }
 #endif
+      }
     break;
 
     case 0:     /* \ followed by EOF allows for an empty line */
@@ -7309,10 +7403,7 @@ while ((c = *p++) != 0)
     }
 #endif
 #ifdef SUPPORT_PCRE2_32
-  if (test_mode == PCRE32_MODE)
-    {
-    *q32++ = c;
-    }
+  if (test_mode == PCRE32_MODE) *q32++ = c;
 #endif
   }
 
@@ -7780,6 +7871,15 @@ if (dat_datctl.replacement[0] != 0)
   else
     {
     PCRE2_SET_SUBSTITUTE_CALLOUT(dat_context, NULL, NULL);  /* No callout */
+    }
+
+  if (dat_datctl.replacement_case[0] != 0)
+    {
+    PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(dat_context, substitute_case_callout_function, (void *)&dat_datctl.replacement_case[0]);
+    }
+  else
+    {
+    PCRE2_SET_SUBSTITUTE_CASE_CALLOUT(dat_context, NULL, NULL);  /* No callout */
     }
 
   /* There is a special option to set the replacement to NULL in order to test

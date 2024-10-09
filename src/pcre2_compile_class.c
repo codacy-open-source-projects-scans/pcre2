@@ -250,7 +250,7 @@ get_highest_char(uint32_t options)
 return MAX_UTF_CODE_POINT;
 #else
 #ifdef SUPPORT_UNICODE
-return (options & PARSE_CLASS_UTF) ? MAX_UTF_CODE_POINT : MAX_UCHAR_VALUE;
+return GET_MAX_CHAR_VALUE((options & PARSE_CLASS_UTF) != 0);
 #else
 return MAX_UCHAR_VALUE;
 #endif
@@ -356,6 +356,16 @@ while (*ptr != META_CLASS_END)
         case ESC_p:
         case ESC_P:
         ptr++;
+        if (meta_arg == ESC_p && *ptr == PT_ANY)
+          {
+          if (buffer != NULL)
+            {
+            buffer[0] = 0;
+            buffer[1] = get_highest_char(options);
+            buffer += 2;
+            }
+          total_size += 2;
+          }
         break;
         }
       ptr++;
@@ -416,7 +426,7 @@ while (*ptr != META_CLASS_END)
 }
 
 class_ranges *PRIV(optimize_class)(uint32_t *start_ptr,
-  uint32_t options, compile_block* cb)
+  uint32_t options, uint32_t xoptions, compile_block* cb)
 {
 class_ranges* cranges;
 uint32_t *ptr = start_ptr + 1;
@@ -435,7 +445,7 @@ if (options & PCRE2_UTF)
 if ((options & PCRE2_CASELESS) && (options & (PCRE2_UTF|PCRE2_UCP)))
   class_options |= PARSE_CLASS_CASELESS_UTF;
 
-if (cb->cx->extra_options & PCRE2_EXTRA_CASELESS_RESTRICT)
+if (xoptions & PCRE2_EXTRA_CASELESS_RESTRICT)
   class_options |= PARSE_CLASS_RESTRICTED_UTF;
 #endif
 

@@ -268,22 +268,6 @@ No match
     \x{f0}
 No match
 
-/Ā{3,4}/IB,utf
-------------------------------------------------------------------
-        Bra
-        \x{100}{3}
-        \x{100}?+
-        Ket
-        End
-------------------------------------------------------------------
-Capture group count = 0
-Options: utf
-First code unit = \x{100}
-Last code unit = \x{100}
-Subject length lower bound = 3
-  \x{100}\x{100}\x{100}\x{100\x{100}
- 0: \x{100}\x{100}\x{100}
-
 /(\x{100}+|x)/IB,utf
 ------------------------------------------------------------------
         Bra
@@ -1375,7 +1359,7 @@ Failed: error -28: UTF-32 error: code points greater than 0x10ffff are not defin
 /[\W\p{Any}]/B
 ------------------------------------------------------------------
         Bra
-        [\x00-\xff\p{Any}\x{100}-\x{ffffffff}]
+        AllAny
         Ket
         End
 ------------------------------------------------------------------
@@ -1387,7 +1371,7 @@ Failed: error -28: UTF-32 error: code points greater than 0x10ffff are not defin
 /[\W\pL]/B
 ------------------------------------------------------------------
         Bra
-        [\x00-/:-^`-\xff\p{L}\x{100}-\x{ffffffff}]
+        [\x00-/:-^`-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -1404,7 +1388,7 @@ No match
 /[\s[:^ascii:]]/B,ucp
 ------------------------------------------------------------------
         Bra
-        [\x09-\x0d \x80-\xff\p{Xsp}\x{100}-\x{ffffffff}]
+        [\x09-\x0d \x80-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -1881,6 +1865,31 @@ No match
 /k{2,}?Z/caseless,ucp,no_start_optimize,no_auto_possess
 \= Expect no match
     Kk\x{ffffffff}\x{ffffffff}\x{ffffffff}Z
+No match
+
+/[sk](?r:[sk])[sk]/Bi,ucp
+------------------------------------------------------------------
+        Bra
+        [KSks\x{17f}\x{212a}]
+        Bra
+        [KSks]
+        Ket
+        [KSks\x{17f}\x{212a}]
+        Ket
+        End
+------------------------------------------------------------------
+    SKS
+ 0: SKS
+    sks
+ 0: sks
+    \x{212a}S\x{17f}
+ 0: \x{212a}S\x{17f}
+    \x{17f}K\x{212a}
+ 0: \x{17f}K\x{212a}
+\= Expect no match
+    s\x{212a}s
+No match
+    K\x{17f}K
 No match
 
 # --------------------------------------------------------- 

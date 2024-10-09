@@ -590,10 +590,12 @@ typedef struct pcre2_real_match_context {
   pcre2_jit_callback jit_callback;
   void *jit_callback_data;
 #endif
-  int    (*callout)(pcre2_callout_block *, void *);
-  void    *callout_data;
-  int    (*substitute_callout)(pcre2_substitute_callout_block *, void *);
-  void    *substitute_callout_data;
+  int      (*callout)(pcre2_callout_block *, void *);
+  void      *callout_data;
+  int      (*substitute_callout)(pcre2_substitute_callout_block *, void *);
+  void      *substitute_callout_data;
+  uint32_t (*substitute_case_callout)(uint32_t, int, void *);
+  void      *substitute_case_callout_data;
   PCRE2_SIZE offset_limit;
   uint32_t heap_limit;
   uint32_t match_limit;
@@ -732,6 +734,11 @@ typedef struct class_ranges {
   /* Followed by the list of ranges (start/end pairs) */
 } class_ranges;
 
+typedef union class_bits_storage {
+  uint8_t classbits[32];
+  uint32_t classwords[8];
+} class_bits_storage;
+
 /* Structure for passing "static" information around between the functions
 doing the compiling, so that they are thread-safe. */
 
@@ -749,7 +756,7 @@ typedef struct compile_block {
   PCRE2_SIZE workspace_size;       /* Size of workspace */
   PCRE2_SIZE small_ref_offset[10]; /* Offsets for \1 to \9 */
   PCRE2_SIZE erroroffset;          /* Offset of error in pattern */
-  uint8_t classbits[32];           /* Temporary store for classbits */
+  class_bits_storage classbits;    /* Temporary store for classbits */
   uint16_t names_found;            /* Number of entries so far */
   uint16_t name_entry_size;        /* Size of each entry */
   uint16_t parens_depth;           /* Depth of nested parentheses */

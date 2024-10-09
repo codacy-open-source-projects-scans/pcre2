@@ -1,4 +1,4 @@
-.TH PCRE2TEST 1 "21 September 2024" "PCRE 10.45"
+.TH PCRE2TEST 1 "04 October 2024" "PCRE 10.45"
 .SH NAME
 pcre2test - a program for testing Perl-compatible regular expressions.
 .SH SYNOPSIS
@@ -516,7 +516,7 @@ this makes it possible to construct invalid UTF-8 sequences for testing
 purposes. On the other hand, \ex{hh} is interpreted as a UTF-8 character in
 UTF-8 mode, generating more than one byte if the value is greater than 127.
 When testing the 8-bit library not in UTF-8 mode, \ex{hh} generates one byte
-for values less than 256, and causes an error for greater values.
+for values that could fit on it, and causes an error for greater values.
 .P
 In UTF-16 mode, all 4-digit \ex{hhhh} values are accepted. This makes it
 possible to construct invalid UTF-16 sequences for testing purposes.
@@ -618,6 +618,7 @@ for a description of the effects of these options.
       match_word                set PCRE2_EXTRA_MATCH_WORD
   /m  multiline                 set PCRE2_MULTILINE
       never_backslash_c         set PCRE2_NEVER_BACKSLASH_C
+      never_callout             set PCRE2_EXTRA_NEVER_CALLOUT
       never_ucp                 set PCRE2_NEVER_UCP
       never_utf                 set PCRE2_NEVER_UTF
   /n  no_auto_capture           set PCRE2_NO_AUTO_CAPTURE
@@ -666,8 +667,8 @@ The following modifiers affect the compilation process or request information
 about the pattern. There are single-letter abbreviations for some that are
 heavily used in the test files.
 .sp
-      bsr=[anycrlf|unicode]     specify \eR handling
   /B  bincode                   show binary code without lengths
+      bsr=[anycrlf|unicode]     specify \eR handling
       callout_info              show callout information
       convert=<options>         request foreign pattern conversion
       convert_glob_escape=c     set glob escape character
@@ -696,6 +697,7 @@ heavily used in the test files.
       posix_nosub               use the POSIX API with REG_NOSUB
       push                      push compiled pattern onto the stack
       pushcopy                  push a copy onto the stack
+      pushtablescopy            push a copy with tables onto the stack
       stackguard=<number>       test the stackguard feature
       subject_literal           treat all subject lines as literal
       tables=[0|1|2|3]          select internal tables
@@ -1117,6 +1119,7 @@ process.
       replace=<string>            specify a replacement string
       startchar                   show starting character when relevant
       substitute_callout          use substitution callouts
+      substitute_case_callout=<string> use substitution case callouts
       substitute_extended         use PCRE2_SUBSTITUTE_EXTENDED
       substitute_literal          use PCRE2_SUBSTITUTE_LITERAL
       substitute_matched          use PCRE2_SUBSTITUTE_MATCHED
@@ -1217,6 +1220,7 @@ The following modifiers set options for \fBpcre2_match()\fP or
 for a description of their effects.
 .sp
       anchored                   set PCRE2_ANCHORED
+      copy_matched_subject       set PCRE2_COPY_MATCHED_SUBJECT
       endanchored                set PCRE2_ENDANCHORED
       dfa_restart                set PCRE2_DFA_RESTART
       dfa_shortest               set PCRE2_DFA_SHORTEST
@@ -1267,8 +1271,8 @@ pattern, but can be overridden by modifiers on the subject.
       aftertext                  show text after match
       allaftertext               show text after captures
       allcaptures                show all captures
-      allvector                  show the entire ovector
       allusedtext                show all consulted text (non-JIT only)
+      allvector                  show the entire ovector
       altglobal                  alternative global matching
       callout_capture            show captures at callout time
       callout_data=<n>           set a value to pass via callouts
@@ -1302,6 +1306,7 @@ pattern, but can be overridden by modifiers on the subject.
       startchar                  show startchar when relevant
       startoffset=<n>            same as offset=<n>
       substitute_callout         use substitution callouts
+      substitute_case_callout=<string> use substitution case callouts
       substitute_extedded        use PCRE2_SUBSTITUTE_EXTENDED
       substitute_literal         use PCRE2_SUBSTITUTE_LITERAL
       substitute_matched         use PCRE2_SUBSTITUTE_MATCHED
@@ -1585,6 +1590,25 @@ either of them are set, \fBsubstitute_callout\fP is assumed. For example:
 .sp
 If both are set for the same number, stop takes precedence. Only a single skip
 or stop is supported, which is sufficient for testing that the feature works.
+.
+.
+.SS "Testing substitute case callouts"
+.rs
+.sp
+If the \fBsubstitute_case_callout=<string>\fP modifier is set, a substitution
+case callout function is set up. The callout function is called for each
+substituted character which is to be case-transformed, and the mapping used
+is specified by the modifier's string argument.
+.P
+The string argument is parsed as four-character blocks, with each block
+interpreted as "<input><lower><upper><title>". The input character is used
+to find a matching block, and the corresponding character is then returned.
+For example, to specify a custom uppercasing of the letter "a" to "Z":
+.sp
+  /a/g,replace=\eU$0,substitute_extended,substitute_case_callout=a.Z.
+      a
+   1: Z
+.sp
 .
 .
 .SS "Setting the JIT stack size"
@@ -2212,6 +2236,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 21 September 2024
+Last updated: 04 October 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi

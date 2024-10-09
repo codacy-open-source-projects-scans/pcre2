@@ -8818,6 +8818,17 @@ No match
     cat
 No match
 
+/cat[]/B,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        cat
+        []
+        Ket
+        End
+------------------------------------------------------------------
+    cat\=ph
+Partial match: cat
+
 /(\3)(\1)(a)/allow_empty_class,match_unset_backref,dupnames
     cat
  0: a
@@ -8888,9 +8899,8 @@ No match
 No match
 
 /a[]*+b/allow_empty_class,match_unset_backref,dupnames
-\= Expect no match
     ab
-No match
+ 0: ab
 
 /a[^]b/allow_empty_class,match_unset_backref,dupnames
     aXb
@@ -18052,6 +18062,20 @@ Failed: error -55 at offset 3 in replacement: requested value is not set
     XabcY\=replace=  
  0: abc
 
+/abc/replace=\U$0,substitute_extended,substitute_case_callout=a.U.b.V.
+    XabcY
+ 1: XUVcY
+
+/a/substitute_extended
+    XaY\=replace=\U$0,substitute_case_callout=a.U.
+ 1: XUY
+    XaY\=replace=\L$0,substitute_case_callout=aL..
+ 1: XLY
+    XaY\=replace=\u\L$0,substitute_case_callout=a..T
+ 1: XTY
+    XaY\=replace=\l\U$0,substitute_case_callout=aL..
+ 1: XLY
+
 # Expect non-fixed-length error
 
 "(?<=X(?(DEFINE)(.*))(?1))."
@@ -19574,6 +19598,19 @@ Failed: error 115 at offset 2: reference to non-existent subpattern
 Failed: error -49 at offset 2 in replacement: unknown substring
     abc\=replace=\12
 Failed: error -49 at offset 3 in replacement: unknown substring
+
+# --------------
+
+/a(?C)b/
+    abc
+--->abc
+  0 ^^      b
+ 0: ab
+    abc\=callout_none
+ 0: ab
+
+/a(?C)b/never_callout
+Failed: error 203 at offset 3: using callouts is disabled by the application
 
 # End of testinput2
 Error -70: PCRE2_ERROR_BADDATA (unknown error number)

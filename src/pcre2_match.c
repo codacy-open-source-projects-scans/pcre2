@@ -348,6 +348,7 @@ seems unlikely.)
 Arguments:
   offset      index into the offset vector
   caseless    TRUE if caseless
+  caseopts    bitmask of REFI_FLAG_XYZ values
   F           the current backtracking frame pointer
   mb          points to match block
   lengthptr   pointer for returning the length matched
@@ -358,8 +359,8 @@ Returns:      = 0 sucessful match; number of code units matched is set
 */
 
 static int
-match_ref(PCRE2_SIZE offset, BOOL caseless, heapframe *F, match_block *mb,
-  PCRE2_SIZE *lengthptr)
+match_ref(PCRE2_SIZE offset, BOOL caseless, int caseopts, heapframe *F,
+  match_block *mb, PCRE2_SIZE *lengthptr)
 {
 PCRE2_SPTR p;
 PCRE2_SIZE length;
@@ -389,6 +390,7 @@ if (caseless)
   {
 #if defined SUPPORT_UNICODE
   BOOL utf = (mb->poptions & PCRE2_UTF) != 0;
+  BOOL caseless_restrict = (caseopts & REFI_FLAG_CASELESS_RESTRICT) != 0;
 
   if (utf || (mb->poptions & PCRE2_UCP) != 0)
     {
@@ -424,6 +426,11 @@ if (caseless)
       if (c != d && c != (uint32_t)((int)d + ur->other_case))
         {
         const uint32_t *pp = PRIV(ucd_caseless_sets) + ur->caseset;
+
+        /* When PCRE2_EXTRA_CASELESS_RESTRICT is set, ignore any caseless sets
+        that start with an ASCII character. */
+        if (caseless_restrict && *pp < 128) return -1;  /* No match */
+
         for (;;)
           {
           if (c < *pp) return -1;  /* No match */
@@ -813,7 +820,10 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       offset = Flast_group_offset;
       for(;;)
         {
+        /* Corrupted heapframes?. Trigger an assert and return an error */
+        PCRE2_ASSERT(offset != PCRE2_UNSET);
         if (offset == PCRE2_UNSET) return PCRE2_ERROR_INTERNAL;
+
         N = (heapframe *)((char *)match_data->heapframes + offset);
         P = (heapframe *)((char *)N - frame_size);
         if (N->group_frame_type == (GF_CAPTURE | number)) break;
@@ -852,7 +862,10 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       offset = Flast_group_offset;
       for(;;)
         {
+        /* Corrupted heapframes?. Trigger an assert and return an error */
+        PCRE2_ASSERT(offset != PCRE2_UNSET);
         if (offset == PCRE2_UNSET) return PCRE2_ERROR_INTERNAL;
+
         N = (heapframe *)((char *)match_data->heapframes + offset);
         P = (heapframe *)((char *)N - frame_size);
         if (GF_IDMASK(N->group_frame_type) == GF_RECURSE) break;
@@ -2607,6 +2620,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
         /* This should never occur */
 
         default:
+        PCRE2_DEBUG_UNREACHABLE();
         return PCRE2_ERROR_INTERNAL;
         }
 
@@ -2970,6 +2984,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           /* This should not occur */
 
           default:
+          PCRE2_DEBUG_UNREACHABLE();
           return PCRE2_ERROR_INTERNAL;
           }
         }
@@ -3245,6 +3260,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
         break;
 
         default:
+        PCRE2_DEBUG_UNREACHABLE();
         return PCRE2_ERROR_INTERNAL;
         }  /* End switch(Lctype) */
 
@@ -3497,6 +3513,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
         break;
 
         default:
+        PCRE2_DEBUG_UNREACHABLE();
         return PCRE2_ERROR_INTERNAL;
         }
       }
@@ -3531,7 +3548,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             GETCHARINCTEST(fc, Feptr);
             if (Lctype == OP_NOTPROP) RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_LAMP:
@@ -3553,7 +3569,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
                  chartype == ucp_Lt) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_GC:
@@ -3571,7 +3586,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if ((UCD_CATEGORY(fc) == Lpropvalue) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_PC:
@@ -3589,7 +3603,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if ((UCD_CHARTYPE(fc) == Lpropvalue) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_SC:
@@ -3607,7 +3620,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if ((UCD_SCRIPT(fc) == Lpropvalue) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_SCX:
@@ -3630,7 +3642,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if (ok == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_ALNUM:
@@ -3650,7 +3661,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if ((category == ucp_L || category == ucp_N) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           /* Perl space used to exclude VT, but from Perl 5.18 it is included,
@@ -3683,7 +3693,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
               break;
               }
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_WORD:
@@ -3707,7 +3716,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
                  chartype == ucp_Pc) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_CLIST:
@@ -3745,7 +3753,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
                 }
               }
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_UCNC:
@@ -3765,7 +3772,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
                  fc >= 0xe000) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_BIDICL:
@@ -3783,7 +3789,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if ((UCD_BIDICLASS(fc) == Lpropvalue) == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           case PT_BOOL:
@@ -3806,11 +3811,11 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             if (ok == (Lctype == OP_NOTPROP))
               RRETURN(MATCH_NOMATCH);
             }
-
           PCRE2_UNREACHABLE(); /* Control never reaches here */
 
           /* This should never occur */
           default:
+          PCRE2_DEBUG_UNREACHABLE();
           return PCRE2_ERROR_INTERNAL;
           }
         }
@@ -3965,6 +3970,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             break;
 
             default:
+            PCRE2_DEBUG_UNREACHABLE();
             return PCRE2_ERROR_INTERNAL;
             }
           }
@@ -4109,12 +4115,13 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
             break;
 
             default:
+            PCRE2_DEBUG_UNREACHABLE();
             return PCRE2_ERROR_INTERNAL;
             }
           }
         }
 
-      PCRE2_UNREACHABLE(); /* Control never reaches here */
+      PCRE2_DEBUG_UNREACHABLE(); /* Control should never reach here */
       }
 
     /* If maximizing, it is worth using inline code for speed, doing the type
@@ -4392,6 +4399,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           break;
 
           default:
+          PCRE2_DEBUG_UNREACHABLE();
           return PCRE2_ERROR_INTERNAL;
           }
 
@@ -4710,6 +4718,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           break;
 
           default:
+          PCRE2_DEBUG_UNREACHABLE();
           return PCRE2_ERROR_INTERNAL;
           }
 
@@ -4967,6 +4976,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           break;
 
           default:
+          PCRE2_DEBUG_UNREACHABLE();
           return PCRE2_ERROR_INTERNAL;
           }
 
@@ -5003,16 +5013,18 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
 #define Lmin      F->temp_32[0]
 #define Lmax      F->temp_32[1]
 #define Lcaseless F->temp_32[2]
+#define Lcaseopts F->temp_32[3]
 #define Lstart    F->temp_sptr[0]
 #define Loffset   F->temp_size
 
     case OP_DNREF:
     case OP_DNREFI:
     Lcaseless = (Fop == OP_DNREFI);
+    Lcaseopts = (Fop == OP_DNREFI)? Fecode[1 + 2*IMM2_SIZE] : 0;
       {
       int count = GET2(Fecode, 1+IMM2_SIZE);
       PCRE2_SPTR slot = mb->name_table + GET2(Fecode, 1) * mb->name_entry_size;
-      Fecode += 1 + 2*IMM2_SIZE;
+      Fecode += 1 + 2*IMM2_SIZE + (Fop == OP_DNREFI? 1 : 0);
 
       while (count-- > 0)
         {
@@ -5026,8 +5038,9 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
     case OP_REF:
     case OP_REFI:
     Lcaseless = (Fop == OP_REFI);
+    Lcaseopts = (Fop == OP_REFI)? Fecode[1 + IMM2_SIZE] : 0;
     Loffset = (GET2(Fecode, 1) << 1) - 2;
-    Fecode += 1 + IMM2_SIZE;
+    Fecode += 1 + IMM2_SIZE + (Fop == OP_REFI? 1 : 0);
 
     /* Set up for repetition, or handle the non-repeated case. The maximum and
     minimum must be in the heap frame, but as they are short-term values, we
@@ -5059,7 +5072,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
 
       default:                  /* No repeat follows */
         {
-        rrc = match_ref(Loffset, Lcaseless, F, mb, &length);
+        rrc = match_ref(Loffset, Lcaseless, Lcaseopts, F, mb, &length);
         if (rrc != 0)
           {
           if (rrc > 0) Feptr = mb->end_subject;   /* Partial match */
@@ -5093,7 +5106,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
     for (i = 1; i <= Lmin; i++)
       {
       PCRE2_SIZE slength;
-      rrc = match_ref(Loffset, Lcaseless, F, mb, &slength);
+      rrc = match_ref(Loffset, Lcaseless, Lcaseopts, F, mb, &slength);
       if (rrc != 0)
         {
         if (rrc > 0) Feptr = mb->end_subject;   /* Partial match */
@@ -5117,7 +5130,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
         RMATCH(Fecode, RM20);
         if (rrc != MATCH_NOMATCH) RRETURN(rrc);
         if (Lmin++ >= Lmax) RRETURN(MATCH_NOMATCH);
-        rrc = match_ref(Loffset, Lcaseless, F, mb, &slength);
+        rrc = match_ref(Loffset, Lcaseless, Lcaseopts, F, mb, &slength);
         if (rrc != 0)
           {
           if (rrc > 0) Feptr = mb->end_subject;   /* Partial match */
@@ -5126,6 +5139,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           }
         Feptr += slength;
         }
+
       PCRE2_UNREACHABLE(); /* Control never reaches here */
       }
 
@@ -5141,7 +5155,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       for (i = Lmin; i < Lmax; i++)
         {
         PCRE2_SIZE slength;
-        rrc = match_ref(Loffset, Lcaseless, F, mb, &slength);
+        rrc = match_ref(Loffset, Lcaseless, Lcaseopts, F, mb, &slength);
         if (rrc != 0)
           {
           /* Can't use CHECK_PARTIAL because we don't want to update Feptr in
@@ -5192,7 +5206,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
           for (i = Lmin; i < Lmax; i++)
             {
             PCRE2_SIZE slength;
-            (void)match_ref(Loffset, Lcaseless, F, mb, &slength);
+            (void)match_ref(Loffset, Lcaseless, Lcaseopts, F, mb, &slength);
             Feptr += slength;
             }
           }
@@ -5201,7 +5215,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       RRETURN(MATCH_NOMATCH);
       }
 
-    PCRE2_UNREACHABLE(); /* Control never reaches here */
+    PCRE2_DEBUG_UNREACHABLE(); /* Control should never reach here */
 
 #undef Lcaseless
 #undef Lmin
@@ -5425,7 +5439,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       Fecode += GET(Fecode, 1);
       if (*Fecode != OP_ALT) RRETURN(MATCH_NOMATCH);
       }
-
     PCRE2_UNREACHABLE(); /* Control never reaches here */
 
 #undef Lframe_type
@@ -5511,7 +5524,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       Lstart_branch = next_ecode;
       if (*Lstart_branch != OP_ALT) RRETURN(MATCH_NOMATCH);
       }
-
     PCRE2_UNREACHABLE(); /* Control never reaches here */
 
 #undef Lframe_type
@@ -6026,7 +6038,6 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       if (utf) { FORWARDCHARTEST(Feptr, mb->end_subject); }
 #endif
       }
-
     PCRE2_UNREACHABLE(); /* Control never reaches here */
 
 #undef Lmin
@@ -6119,7 +6130,11 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
       /* It is the end of whole-pattern recursion. */
 
       offset = Flast_group_offset;
+
+      /* Corrupted heapframes?. Trigger an assert and return an error */
+      PCRE2_ASSERT(offset != PCRE2_UNSET);
       if (offset == PCRE2_UNSET) return PCRE2_ERROR_INTERNAL;
+
       N = (heapframe *)((char *)match_data->heapframes + offset);
       P = (heapframe *)((char *)N - frame_size);
       Flast_group_offset = P->last_group_offset;
@@ -6616,6 +6631,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
     something seriously wrong in the code above or the OP_xxx definitions. */
 
     default:
+    PCRE2_DEBUG_UNREACHABLE();
     return PCRE2_ERROR_INTERNAL;
     }
 
@@ -6625,8 +6641,7 @@ fprintf(stderr, "++ %2ld op=%3d %s\n", Fecode - mb->start_code, *Fecode,
 
   }  /* End of main loop */
 
-  PCRE2_UNREACHABLE(); /* Control never reaches here */
-
+PCRE2_DEBUG_UNREACHABLE(); /* Control should never reach here */
 
 /* ========================================================================= */
 /* The RRETURN() macro jumps here. The number that is saved in Freturn_id
@@ -6666,6 +6681,7 @@ switch (Freturn_id)
 #endif
 
   default:
+  PCRE2_DEBUG_UNREACHABLE();
   return PCRE2_ERROR_INTERNAL;
   }
 #undef LBL
@@ -7180,7 +7196,9 @@ switch(re->newline_convention)
   mb->nltype = NLTYPE_ANYCRLF;
   break;
 
-  default: return PCRE2_ERROR_INTERNAL;
+  default:
+  PCRE2_DEBUG_UNREACHABLE();
+  return PCRE2_ERROR_INTERNAL;
   }
 
 /* The backtracking frames have fixed data at the front, and a PCRE2_SIZE

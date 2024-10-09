@@ -61,7 +61,7 @@ enum { ERR0 = COMPILE_ERROR_BASE,
        ERR71, ERR72, ERR73, ERR74, ERR75, ERR76, ERR77, ERR78, ERR79, ERR80,
        ERR81, ERR82, ERR83, ERR84, ERR85, ERR86, ERR87, ERR88, ERR89, ERR90,
        ERR91, ERR92, ERR93, ERR94, ERR95, ERR96, ERR97, ERR98, ERR99, ERR100,
-       ERR101,ERR102 };
+       ERR101,ERR102,ERR103 };
 
 /* Code values for parsed patterns, which are stored in a vector of 32-bit
 unsigned ints. Values less than META_END are literal data values. The coding
@@ -183,14 +183,25 @@ therefore no need for it to have a length entry, so use a high value. */
 #define MAX_UCHAR_VALUE 0xffffffffu
 #endif
 
+#define GET_MAX_CHAR_VALUE(utf) \
+  ((utf) ? MAX_UTF_CODE_POINT : MAX_UCHAR_VALUE)
+
 /* Macro for setting individual bits in class bitmaps. */
 
 #define SETBIT(a,b) a[(b) >> 3] |= (uint8_t)(1u << ((b) & 0x7))
 
+/* Macro for 8 bit specific checks. */
+#if PCRE2_CODE_UNIT_WIDTH == 8
+#define SELECT_VALUE8(value8, value) (value8)
+#else
+#define SELECT_VALUE8(value8, value) (value)
+#endif
+
+
 /* Merge intersecting ranges of classes. */
 
 class_ranges *PRIV(optimize_class)(uint32_t *start_ptr,
-  uint32_t options, compile_block* cb);
+  uint32_t options, uint32_t xoptions, compile_block* cb);
 
 /* Set bits in classbits according to the property type */
 

@@ -187,9 +187,6 @@
     \x{c0}
     \x{f0}
 
-/Ā{3,4}/IB,utf
-  \x{100}\x{100}\x{100}\x{100\x{100}
-
 /(\x{100}+|x)/IB,utf
 
 /(\x{100}*a|x)/IB,utf
@@ -687,5 +684,11 @@
 
 /abc/utf,substitute_extended,python_octal
     abc\=replace=\400
+
+/[\x00-\x2f\x11-\xff]+/B
+    abcd
+
+/[\x00-\x2f\x11-\xff]{4,}/B,utf
+    abcd
 
 # End of testinput10

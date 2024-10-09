@@ -91,6 +91,7 @@ dist_html_DATA = \
   doc/html/pcre2_set_recursion_limit.html \
   doc/html/pcre2_set_recursion_memory_management.html \
   doc/html/pcre2_set_substitute_callout.html \
+  doc/html/pcre2_set_substitute_case_callout.html \
   doc/html/pcre2_substitute.html \
   doc/html/pcre2_substring_copy_byname.html \
   doc/html/pcre2_substring_copy_bynumber.html \
@@ -190,6 +191,7 @@ dist_man_MANS = \
   doc/pcre2_set_recursion_limit.3 \
   doc/pcre2_set_recursion_memory_management.3 \
   doc/pcre2_set_substitute_callout.3 \
+  doc/pcre2_set_substitute_case_callout.3 \
   doc/pcre2_substitute.3 \
   doc/pcre2_substring_copy_byname.3 \
   doc/pcre2_substring_copy_bynumber.3 \
@@ -758,6 +760,7 @@ EXTRA_DIST += \
   testdata/testinput24 \
   testdata/testinput25 \
   testdata/testinput26 \
+  testdata/testinput27 \
   testdata/testinputEBC \
   testdata/testinputheap \
   testdata/testoutput1 \
@@ -802,6 +805,7 @@ EXTRA_DIST += \
   testdata/testoutput24 \
   testdata/testoutput25 \
   testdata/testoutput26 \
+  testdata/testoutput27 \
   testdata/testoutputEBC \
   testdata/testoutputheap-16 \
   testdata/testoutputheap-32 \

@@ -273,22 +273,6 @@ No match
     \x{f0}
 No match
 
-/Ā{3,4}/IB,utf
-------------------------------------------------------------------
-        Bra
-        \x{100}{3}
-        \x{100}?+
-        Ket
-        End
-------------------------------------------------------------------
-Capture group count = 0
-Options: utf
-First code unit = \x{100}
-Last code unit = \x{100}
-Subject length lower bound = 3
-  \x{100}\x{100}\x{100}\x{100\x{100}
- 0: \x{100}\x{100}\x{100}
-
 /(\x{100}+|x)/IB,utf
 ------------------------------------------------------------------
         Bra
@@ -1381,7 +1365,7 @@ Subject length lower bound = 2
 /[\W\p{Any}]/B
 ------------------------------------------------------------------
         Bra
-        [\x00-\xff\p{Any}\x{100}-\x{ffff}]
+        AllAny
         Ket
         End
 ------------------------------------------------------------------
@@ -1393,7 +1377,7 @@ Subject length lower bound = 2
 /[\W\pL]/B
 ------------------------------------------------------------------
         Bra
-        [\x00-/:-^`-\xff\p{L}\x{100}-\x{ffff}]
+        [\x00-/:-^`-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -1410,7 +1394,7 @@ No match
 /[\s[:^ascii:]]/B,ucp
 ------------------------------------------------------------------
         Bra
-        [\x09-\x0d \x80-\xff\p{Xsp}\x{100}-\x{ffff}]
+        [\x09-\x0d \x80-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -1891,6 +1875,31 @@ Failed: error 134 at offset 12: character code point value in \x{} or \o{} is to
 ** Truncation will probably give the wrong result.
 ** Character \x{ffffffff} is greater than 0xffff and UTF-16 mode is not enabled.
 ** Truncation will probably give the wrong result.
+No match
+
+/[sk](?r:[sk])[sk]/Bi,ucp
+------------------------------------------------------------------
+        Bra
+        [KSks\x{17f}\x{212a}]
+        Bra
+        [KSks]
+        Ket
+        [KSks\x{17f}\x{212a}]
+        Ket
+        End
+------------------------------------------------------------------
+    SKS
+ 0: SKS
+    sks
+ 0: sks
+    \x{212a}S\x{17f}
+ 0: \x{212a}S\x{17f}
+    \x{17f}K\x{212a}
+ 0: \x{17f}K\x{212a}
+\= Expect no match
+    s\x{212a}s
+No match
+    K\x{17f}K
 No match
 
 # --------------------------------------------------------- 

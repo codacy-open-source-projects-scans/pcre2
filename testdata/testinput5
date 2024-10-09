@@ -860,6 +860,8 @@
 
 /[\P{Any}]/B
 
+/[^\P{Any}\P{Any}]/B
+
 /[\P{Any}\E]/B
 
 /(\P{Yi}+\277)/
@@ -2278,6 +2280,61 @@
 \= Expect no match          
     \x{212a}\x{212a}
 
+/[sk](?r:[sk])[sk]/Bi,utf
+    SKS
+    sks
+    \x{212a}S\x{17f}
+    \x{17f}K\x{212a}
+\= Expect no match
+    s\x{212a}s
+    K\x{17f}K
+
+/(.) \1/i,utf,caseless_restrict
+    s S
+    k K
+\= Expect no match
+    s \x{17f}
+    k \x{212a}
+
+/(.) (?r:\1)/i,utf
+    s S
+    k K
+\= Expect no match
+    s \x{17f}
+    k \x{212a}
+
+/(.) \1/i,utf
+    s S
+    k K
+    s \x{17f}
+    k \x{212a}
+
+/(?:(?<A>ss)|(?<A>kk)) \k<A>/i,utf,dupnames,caseless_restrict
+    sS Ss
+    kK Kk
+\= Expect no match
+    sS \x{17f}s
+    kK \x{212a}k
+
+/(?:(?<A>ss)|(?<A>kk)) \k<A>/i,utf,dupnames
+    sS Ss
+    kK Kk
+    sS \x{17f}s
+    kK \x{212a}k
+
+/(?:(?<A>s)|(?<A>k)) \k<A>{3,}!/i,utf,dupnames,caseless_restrict
+    s SsSs!
+    k KkKk!
+\= Expect no match
+    s \x{17f}sSs\x{17f}!
+    k \x{212a}kKk\x{212a}!
+
+/(?:(?<A>s)|(?<A>k)) \k<A>{3,}!/i,utf,dupnames
+    s SsSs!
+    k KkKk!
+    s \x{17f}sSs\x{17f}!
+    k \x{212a}kKk\x{212a}!
+
 # End caseless restrict tests
 
 # TESTS for PCRE2_EXTRA_ASCII_xxx - again, tests with and without.
@@ -2572,6 +2629,21 @@
 
 /[\x80-\x{4000}\x90\x{400}-\x{f000}\xa0\pN\x{4000}-\x{10ffff}]++/B,utf
     \x{7f}\x{80}\x{100}090\x{10fffe}\x{10ffff}\x00
+
+/[\x00-\x{4000}\x{2000}-\x{10ffff}]++/B,utf
+    abcd
+
+/[abc\p{Any}]{5,7}/B,utf
+    xyz
+
+/[^\p{Any}\x34\p{Any}]*cat/B,utf
+    cat
+
+/[\pN\xf0-\x{10ffff}]{5,8}/B,utf
+    ab0123456cd
+
+/[\x00-\x{398}\x{39a}-\x{10ffff}]*#(?i)[\x00-\x{398}\x{39a}-\x{10ffff}]*?#/B,utf
+    abcd#efg#
 
 # Freeing memory on error test
 /[\x{100}-\x{400}][\x{100}-\x{300}][\x{100}-\x{200}]\8/i,utf

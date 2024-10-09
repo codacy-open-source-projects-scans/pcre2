@@ -1889,7 +1889,15 @@ No match
 /[\P{Any}]/B
 ------------------------------------------------------------------
         Bra
-        [\P{Any}]
+        []
+        Ket
+        End
+------------------------------------------------------------------
+
+/[^\P{Any}\P{Any}]/B
+------------------------------------------------------------------
+        Bra
+        AllAny
         Ket
         End
 ------------------------------------------------------------------
@@ -1897,7 +1905,7 @@ No match
 /[\P{Any}\E]/B
 ------------------------------------------------------------------
         Bra
-        [\P{Any}]
+        []
         Ket
         End
 ------------------------------------------------------------------
@@ -4070,7 +4078,7 @@ MK: a\x{12345}b\x{09}(d)c
 /[[:^ascii:]\w]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [0-9A-Z_a-z\x80-\xff\p{Xwd}\x{100}-\x{10ffff}]
+        [0-9A-Z_a-z\x80-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -4078,7 +4086,7 @@ MK: a\x{12345}b\x{09}(d)c
 /[\w[:^ascii:]]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [0-9A-Z_a-z\x80-\xff\p{Xwd}\x{100}-\x{10ffff}]
+        [0-9A-Z_a-z\x80-\xff] (neg)
         Ket
         End
 ------------------------------------------------------------------
@@ -5177,6 +5185,131 @@ No match
     \x{212a}\x{212a}
 No match
 
+/[sk](?r:[sk])[sk]/Bi,utf
+------------------------------------------------------------------
+        Bra
+        [KSks\x{17f}\x{212a}]
+        Bra
+        [KSks]
+        Ket
+        [KSks\x{17f}\x{212a}]
+        Ket
+        End
+------------------------------------------------------------------
+    SKS
+ 0: SKS
+    sks
+ 0: sks
+    \x{212a}S\x{17f}
+ 0: \x{212a}S\x{17f}
+    \x{17f}K\x{212a}
+ 0: \x{17f}K\x{212a}
+\= Expect no match
+    s\x{212a}s
+No match
+    K\x{17f}K
+No match
+
+/(.) \1/i,utf,caseless_restrict
+    s S
+ 0: s S
+ 1: s
+    k K
+ 0: k K
+ 1: k
+\= Expect no match
+    s \x{17f}
+No match
+    k \x{212a}
+No match
+
+/(.) (?r:\1)/i,utf
+    s S
+ 0: s S
+ 1: s
+    k K
+ 0: k K
+ 1: k
+\= Expect no match
+    s \x{17f}
+No match
+    k \x{212a}
+No match
+
+/(.) \1/i,utf
+    s S
+ 0: s S
+ 1: s
+    k K
+ 0: k K
+ 1: k
+    s \x{17f}
+ 0: s \x{17f}
+ 1: s
+    k \x{212a}
+ 0: k \x{212a}
+ 1: k
+
+/(?:(?<A>ss)|(?<A>kk)) \k<A>/i,utf,dupnames,caseless_restrict
+    sS Ss
+ 0: sS Ss
+ 1: sS
+    kK Kk
+ 0: kK Kk
+ 1: <unset>
+ 2: kK
+\= Expect no match
+    sS \x{17f}s
+No match
+    kK \x{212a}k
+No match
+
+/(?:(?<A>ss)|(?<A>kk)) \k<A>/i,utf,dupnames
+    sS Ss
+ 0: sS Ss
+ 1: sS
+    kK Kk
+ 0: kK Kk
+ 1: <unset>
+ 2: kK
+    sS \x{17f}s
+ 0: sS \x{17f}s
+ 1: sS
+    kK \x{212a}k
+ 0: kK \x{212a}k
+ 1: <unset>
+ 2: kK
+
+/(?:(?<A>s)|(?<A>k)) \k<A>{3,}!/i,utf,dupnames,caseless_restrict
+    s SsSs!
+ 0: s SsSs!
+ 1: s
+    k KkKk!
+ 0: k KkKk!
+ 1: <unset>
+ 2: k
+\= Expect no match
+    s \x{17f}sSs\x{17f}!
+No match
+    k \x{212a}kKk\x{212a}!
+No match
+
+/(?:(?<A>s)|(?<A>k)) \k<A>{3,}!/i,utf,dupnames
+    s SsSs!
+ 0: s SsSs!
+ 1: s
+    k KkKk!
+ 0: k KkKk!
+ 1: <unset>
+ 2: k
+    s \x{17f}sSs\x{17f}!
+ 0: s \x{17f}sSs\x{17f}!
+ 1: s
+    k \x{212a}kKk\x{212a}!
+ 0: k \x{212a}kKk\x{212a}!
+ 1: <unset>
+ 2: k
+
 # End caseless restrict tests
 
 # TESTS for PCRE2_EXTRA_ASCII_xxx - again, tests with and without.
@@ -5575,7 +5708,7 @@ Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement
 /[\x{100}-\x{400}]+/Bi,utf
 ------------------------------------------------------------------
         Bra
-        [Ss\xb5\xff\x{100}-\x{400}\x{450}\x{1fbe}\x{2126}\x{2c62}\x{2c64}-\x{2c66}\x{2c6d}-\x{2c70}\x{2c7e}-\x{2c7f}\x{a78d}\x{a7aa}-\x{a7ae}\x{a7b0}-\x{a7b2}\x{a7c5}]++
+        [Ss\xb5\xff\x{100}-\x{400}\x{450}\x{1fbe}\x{1fd3}\x{1fe3}\x{2126}\x{2c62}\x{2c64}-\x{2c66}\x{2c6d}-\x{2c70}\x{2c7e}-\x{2c7f}\x{a78d}\x{a7aa}-\x{a7ae}\x{a7b0}-\x{a7b2}\x{a7c5}\x{a7cb}\x{a7dc}]++
         Ket
         End
 ------------------------------------------------------------------
@@ -5647,12 +5780,67 @@ Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement
 /[\x80-\x{4000}\x90\x{400}-\x{f000}\xa0\pN\x{4000}-\x{10ffff}]++/B,utf
 ------------------------------------------------------------------
         Bra
-        [0-9\x80-\xff\p{N}\x{100}-\x{10ffff}]++
+        [0-9\x80-\xff] (neg)++
         Ket
         End
 ------------------------------------------------------------------
     \x{7f}\x{80}\x{100}090\x{10fffe}\x{10ffff}\x00
  0: \x{80}\x{100}090\x{10fffe}\x{10ffff}
+
+/[\x00-\x{4000}\x{2000}-\x{10ffff}]++/B,utf
+------------------------------------------------------------------
+        Bra
+        AllAny++
+        Ket
+        End
+------------------------------------------------------------------
+    abcd
+ 0: abcd
+
+/[abc\p{Any}]{5,7}/B,utf
+------------------------------------------------------------------
+        Bra
+        AllAny{5}
+        AllAny{0,2}+
+        Ket
+        End
+------------------------------------------------------------------
+    xyz
+No match
+
+/[^\p{Any}\x34\p{Any}]*cat/B,utf
+------------------------------------------------------------------
+        Bra
+        []*+
+        cat
+        Ket
+        End
+------------------------------------------------------------------
+    cat
+ 0: cat
+
+/[\pN\xf0-\x{10ffff}]{5,8}/B,utf
+------------------------------------------------------------------
+        Bra
+        [0-9\xb2\xb3\xb9\xbc-\xbe\xf0-\xff] (neg){5,8}+
+        Ket
+        End
+------------------------------------------------------------------
+    ab0123456cd
+ 0: 0123456
+
+/[\x00-\x{398}\x{39a}-\x{10ffff}]*#(?i)[\x00-\x{398}\x{39a}-\x{10ffff}]*?#/B,utf
+------------------------------------------------------------------
+        Bra
+        [\x00-\xff\x{100}-\x{398}\x{39a}-\x{10ffff}]*
+        #
+        AllAny*?
+     /i #
+        Ket
+        End
+------------------------------------------------------------------
+    abcd#efg#
+ 0: abcd#efg#
 
 # Freeing memory on error test
 /[\x{100}-\x{400}][\x{100}-\x{300}][\x{100}-\x{200}]\8/i,utf
