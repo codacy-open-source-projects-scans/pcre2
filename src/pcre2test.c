@@ -790,6 +790,7 @@ static modstruct modlist[] = {
   { "substitute_unknown_unset",    MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_UNKNOWN_UNSET, PO(control2) },
   { "substitute_unset_empty",      MOD_PND,  MOD_CTL, CTL2_SUBSTITUTE_UNSET_EMPTY, PO(control2) },
   { "tables",                      MOD_PAT,  MOD_INT, 0,                          PO(tables_id) },
+  { "turkish_casing",              MOD_CTC,  MOD_OPT, PCRE2_EXTRA_TURKISH_CASING, CO(extra_options) },
   { "ucp",                         MOD_PATP, MOD_OPT, PCRE2_UCP,                  PO(options) },
   { "ungreedy",                    MOD_PAT,  MOD_OPT, PCRE2_UNGREEDY,             PO(options) },
   { "use_length",                  MOD_PAT,  MOD_CTL, CTL_USE_LENGTH,             PO(control) },
@@ -962,6 +963,13 @@ static coptstruct coptlist[] = {
 #undef SUPPORT_32
 #undef SUPPORT_EBCDIC
 
+/* Types for the parser, to be used in process_data() */
+
+enum force_encoding {
+  FORCE_NONE,         /* No preference, follow utf modifier */
+  FORCE_RAW,          /* Encode as a code point or error if too wide */
+  FORCE_UTF           /* Encode as a character or error if too wide */
+};
 
 /* ----------------------- Static variables ------------------------ */
 
@@ -4394,7 +4402,7 @@ show_compile_extra_options(uint32_t options, const char *before,
   const char *after)
 {
 if (options == 0) fprintf(outfile, "%s <none>%s", before, after);
-else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
   before,
   ((options & PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK) != 0) ? " allow_lookaround_bsk" : "",
   ((options & PCRE2_EXTRA_ALLOW_SURROGATE_ESCAPES) != 0)? " allow_surrogate_escapes" : "",
@@ -4412,6 +4420,7 @@ else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
   ((options & PCRE2_EXTRA_NEVER_CALLOUT) != 0)? " never_callout" : "",
   ((options & PCRE2_EXTRA_NO_BS0) != 0)? " no_bs0" : "",
   ((options & PCRE2_EXTRA_PYTHON_OCTAL) != 0)? " python_octal" : "",
+  ((options & PCRE2_EXTRA_TURKISH_CASING) != 0)? " turkish_casing" : "",
   after);
 }
 
@@ -7132,8 +7141,9 @@ in 16- and 32-bit modes, it can be forced to UTF-8 by the utf8_input modifier.
 
 while ((c = *p++) != 0)
   {
-  int32_t i = 0;
+  int i = 0;
   size_t replen;
+  enum force_encoding encoding = FORCE_NONE;
 
   /* ] may mark the end of a replicated sequence */
 
@@ -7155,6 +7165,7 @@ while ((c = *p++) != 0)
       fprintf(outfile, "** Repeat count too large\n");
       return PR_OK;
       }
+    i = (int)li;
 
     p = (uint8_t *)endptr;
     if (*p++ != '}')
@@ -7163,7 +7174,6 @@ while ((c = *p++) != 0)
       return PR_OK;
       }
 
-    i = (int32_t)li;
     if (i-- <= 0)
       {
       fprintf(outfile, "** Zero or negative repeat not allowed\n");
@@ -7241,8 +7251,10 @@ while ((c = *p++) != 0)
     case '0': case '1': case '2': case '3':
     case '4': case '5': case '6': case '7':
     c -= '0';
-    while (i++ < 2 && isdigit(*p) && *p != '8' && *p != '9')
+    while (i++ < 2 && isdigit(*p) && *p < '8')
       c = c * 8 + (*p++ - '0');
+
+    encoding = (utf && c > 255)? FORCE_UTF : FORCE_RAW;
     break;
 
     case 'o':
@@ -7250,15 +7262,21 @@ while ((c = *p++) != 0)
       {
       uint8_t *pt = p;
       c = 0;
-      for (pt++; isdigit(*pt) && *pt != '8' && *pt != '9'; pt++)
+      for (pt++; isdigit(*pt) && *pt < '8'; ++i, pt++)
         {
-        if (++i == 12)
-          fprintf(outfile, "** Too many octal digits in \\o{...} item; "
-                           "using only the first twelve.\n");
+        if (c >= 0x20000000l)
+          {
+          fprintf(outfile, "** \\o{ escape too large\n");
+          return PR_OK;
+          }
         else c = c * 8 + (*pt - '0');
         }
-      if (*pt == '}') p = pt + 1;
-        else fprintf(outfile, "** Missing } after \\o{ (assumed)\n");
+      if (i == 0 || *pt != '}')
+        {
+        fprintf(outfile, "** Malformed \\o{ escape\n");
+        return PR_OK;
+        }
+      else p = pt + 1;
       }
     break;
 
@@ -7304,14 +7322,30 @@ while ((c = *p++) != 0)
         p++;
         }
 #if defined SUPPORT_PCRE2_8
-      if (utf && (test_mode == PCRE8_MODE))
-        {
-        *q8++ = c;
-        continue;
-        }
+      if (utf && (test_mode == PCRE8_MODE)) encoding = FORCE_RAW;
 #endif
       }
     break;
+
+    case 'N':
+    if (memcmp(p, "{U+", 3) == 0 && isxdigit(p[3]))
+      {
+      char *endptr;
+      unsigned long uli;
+
+      p += 3;
+      errno = 0;
+      uli = strtoul((const char *)p, &endptr, 16);
+      if (errno == 0 && *endptr == '}' && uli <= UINT32_MAX)
+        {
+        c = (uint32_t)uli;
+        p = (uint8_t *)endptr + 1;
+        encoding = FORCE_UTF;
+        break;
+        }
+      }
+    fprintf(outfile, "** Malformed \\N{U+ escape\n");
+    return PR_OK;
 
     case 0:     /* \ followed by EOF allows for an empty line */
     p--;
@@ -7338,24 +7372,13 @@ while ((c = *p++) != 0)
     }
 
   /* We now have a character value in c that may be greater than 255.
-  In 8-bit mode we convert to UTF-8 if we are in UTF mode. Values greater
-  than 127 in UTF mode must have come from \x{...} or octal constructs
-  because values from \x.. get this far only in non-UTF mode. */
+  Depending of how we got it, the encoding enum could be set to tell
+  us how to encode it, otherwise follow the utf modifier. */
 
 #ifdef SUPPORT_PCRE2_8
   if (test_mode == PCRE8_MODE)
     {
-    if (utf)
-      {
-      if (c > 0x7fffffff)
-        {
-        fprintf(outfile, "** Character \\x{%x} is greater than 0x7fffffff "
-          "and so cannot be converted to UTF-8\n", c);
-        return PR_OK;
-        }
-      q8 += ord2utf8(c, q8);
-      }
-    else
+    if (encoding == FORCE_RAW || !(utf || encoding == FORCE_UTF))
       {
       if (c > 0xffu)
         {
@@ -7366,27 +7389,37 @@ while ((c = *p++) != 0)
         }
       *q8++ = (uint8_t)c;
       }
+    else
+      {
+      if (c > 0x7fffffff)
+        {
+        fprintf(outfile, "** Character \\N{U+%x} is greater than 0x7fffffff "
+                         "and therefore cannot be encoded as UTF-8\n", c);
+        return PR_OK;
+        }
+      q8 += ord2utf8(c, q8);
+      }
     }
 #endif
 #ifdef SUPPORT_PCRE2_16
   if (test_mode == PCRE16_MODE)
     {
-    if (utf)
+    if (encoding == FORCE_UTF || utf)
       {
       if (c > 0x10ffffu)
         {
-        fprintf(outfile, "** Failed: character \\x{%x} is greater than "
-          "0x10ffff and so cannot be converted to UTF-16\n", c);
+        fprintf(outfile, "** Failed: character \\N{U+%x} is greater than "
+                         "0x10ffff and therefore cannot be encoded as "
+                         "UTF-16\n", c);
         return PR_OK;
         }
       else if (c >= 0x10000u)
         {
-        c-= 0x10000u;
+        c -= 0x10000u;
         *q16++ = 0xD800 | (c >> 10);
         *q16++ = 0xDC00 | (c & 0x3ff);
         }
-      else
-        *q16++ = c;
+      else *q16++ = c;
       }
     else
       {

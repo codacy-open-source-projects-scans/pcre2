@@ -1077,7 +1077,7 @@ Subject length lower bound = 1
 
 /A/utf
   \x{ff000041}
-** Character \x{ff000041} is greater than 0x7fffffff and so cannot be converted to UTF-8
+** Character \N{U+ff000041} is greater than 0x7fffffff and therefore cannot be encoded as UTF-8
   \x{7f000041}
 Failed: error -14: UTF-8 error: 6-byte character is not allowed (RFC 3629) at offset 0
 
@@ -1938,6 +1938,14 @@ No match
     ab\x80cde         
  0: ab
  1: ab
+
+/(.) \1/i,ucp
+    i I
+ 0: i I
+ 1: i
+
+/(.) \1/i,ucp,turkish_casing
+Failed: error 205 at offset 0: PCRE2_EXTRA_TURKISH_CASING requires UTF in 8-bit mode
 
 # python_octal
 
