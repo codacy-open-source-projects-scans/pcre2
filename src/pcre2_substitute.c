@@ -197,7 +197,7 @@ Returns:    TRUE if a name was read
 */
 
 static BOOL
-read_name(PCRE2_SPTR *ptrptr, PCRE2_SPTR ptrend, BOOL utf,
+read_name_subst(PCRE2_SPTR *ptrptr, PCRE2_SPTR ptrend, BOOL utf,
     const uint8_t* ctypes)
 {
 PCRE2_SPTR ptr = *ptrptr;
@@ -758,7 +758,7 @@ do
         {
         PCRE2_SIZE name_len;
         PCRE2_SPTR name_start = ptr;
-        if (!read_name(&ptr, repend, utf, code->tables + ctypes_offset))
+        if (!read_name_subst(&ptr, repend, utf, code->tables + ctypes_offset))
           goto BAD;
         name_len = ptr - name_start;
         memcpy(name, name_start, CU2BYTES(name_len));
@@ -766,6 +766,7 @@ do
         }
 
       next = 0; /* not used or updated after this point */
+      (void)next;
 
       /* In extended mode we recognize ${name:+set text:unset text} and
       ${name:-default text}. */
@@ -942,7 +943,7 @@ do
           GETCHARINCTEST(ch, subptr);
           if (forcecase != 0)
             {
-            if (mcontext->substitute_case_callout)
+            if (mcontext != NULL && mcontext->substitute_case_callout != NULL)
               {
               ch = mcontext->substitute_case_callout(
                 ch,
@@ -1068,7 +1069,7 @@ do
           ++ptr;
 
           name_start = ptr;
-          if (!read_name(&ptr, repend, utf, code->tables + ctypes_offset))
+          if (!read_name_subst(&ptr, repend, utf, code->tables + ctypes_offset))
             goto BADESCAPE;
           name_len = ptr - name_start;
 
@@ -1104,7 +1105,7 @@ do
       LITERAL:
       if (forcecase != 0)
         {
-        if (mcontext->substitute_case_callout)
+        if (mcontext != NULL && mcontext->substitute_case_callout != NULL)
           {
           ch = mcontext->substitute_case_callout(
             ch,

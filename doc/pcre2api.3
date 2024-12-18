@@ -1,4 +1,4 @@
-.TH PCRE2API 3 "04 October 2024" "PCRE2 10.45"
+.TH PCRE2API 3 "10 December 2024" "PCRE2 10.45-DEV"
 .SH NAME
 PCRE2 - Perl-compatible regular expressions (revised API)
 .sp
@@ -1493,7 +1493,7 @@ error code and an offset (number of code units) within the pattern,
 respectively, when \fBpcre2_compile()\fP returns NULL because a compilation
 error has occurred.
 .P
-There are nearly 100 positive error codes that \fBpcre2_compile()\fP may return
+There are over 100 positive error codes that \fBpcre2_compile()\fP may return
 if it finds an error in the pattern. There are also some negative error codes
 that are used for invalid UTF strings when validity checking is in force. These
 are the same as given by \fBpcre2_match()\fP and \fBpcre2_dfa_match()\fP, and
@@ -1601,6 +1601,18 @@ after any internal newline. However, it does not match after a newline at the
 end of the subject, for compatibility with Perl. If you want a multiline
 circumflex also to match after a terminating newline, you must set
 PCRE2_ALT_CIRCUMFLEX.
+.sp
+  PCRE2_ALT_EXTENDED_CLASS
+.sp
+Alters the parsing of character classes to follow the extended syntax
+described by Unicode UTS#18. The PCRE2_ALT_EXTENDED_CLASS option has no impact
+on the behaviour of the Perl-specific "(?[...])" syntax for extended classes,
+but instead enables the alternative syntax of extended class behaviour inside
+ordinary "[...]" character classes. See the
+.\" HREF
+\fBpcre2pattern\fP
+.\"
+documentation for details of the character classes supported.
 .sp
   PCRE2_ALT_VERBNAMES
 .sp
@@ -1853,7 +1865,7 @@ This option locks out the use of Unicode properties for handling \eB, \eb, \eD,
 for the PCRE2_UCP option below. In particular, it prevents the creator of the
 pattern from enabling this facility by starting the pattern with (*UCP). This
 option may be useful in applications that process patterns from external
-sources. The option combination PCRE_UCP and PCRE_NEVER_UCP causes an error.
+sources. The option combination PCRE2_UCP and PCRE2_NEVER_UCP causes an error.
 .sp
   PCRE2_NEVER_UTF
 .sp
@@ -3803,9 +3815,10 @@ PCRE2_SUBSTITUTE_OVERFLOW_LENGTH changes what happens when the output buffer is
 too small. The default action is to return PCRE2_ERROR_NOMEMORY immediately. If
 this option is set, however, \fBpcre2_substitute()\fP continues to go through
 the motions of matching and substituting (without, of course, writing anything)
-in order to compute the size of buffer that is needed. This value is passed
-back via the \fIoutlengthptr\fP variable, with the result of the function still
-being PCRE2_ERROR_NOMEMORY.
+in order to compute the size of buffer that is needed, which will include the
+extra space for the terminating NUL. This value is passed back via the
+\fIoutlengthptr\fP variable, with the result of the function still being
+PCRE2_ERROR_NOMEMORY.
 .P
 Passing a buffer size of zero is a permitted way of finding out how much memory
 is needed for given substitution. However, this does mean that the entire
@@ -3926,7 +3939,7 @@ that can be applied to group captures. For example, if group 1 has captured
 .P
 If either PCRE2_UTF or PCRE2_UCP was set when the pattern was compiled, Unicode
 properties are used for case forcing characters whose code points are greater
-than 127. However, only basic case folding, as determined by the Unicode file
+than 127. However, only simple case folding, as determined by the Unicode file
 \fBCaseFolding.txt\fP is supported. PCRE2 does not support language-specific
 special casing rules such as using different lower case Greek sigmas in the
 middle and ends of words (as defined in the Unicode file
@@ -4407,6 +4420,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 04 October 2024
+Last updated: 10 December 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi

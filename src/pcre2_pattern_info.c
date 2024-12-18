@@ -384,8 +384,9 @@ while (TRUE)
 #endif
     break;
 
-#if defined SUPPORT_UNICODE || PCRE2_CODE_UNIT_WIDTH != 8
+#ifdef SUPPORT_WIDE_CHARS
     case OP_XCLASS:
+    case OP_ECLASS:
     cc += GET(cc, 1);
     break;
 #endif

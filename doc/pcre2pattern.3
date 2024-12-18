@@ -1,4 +1,4 @@
-.TH PCRE2PATTERN 3 "21 Sepbember 2024" "PCRE2 10.45"
+.TH PCRE2PATTERN 3 "27 November 2024" "PCRE2 10.45-DEV"
 .SH NAME
 PCRE2 - Perl-compatible regular expressions (revised API)
 .SH "PCRE2 REGULAR EXPRESSION DETAILS"
@@ -10,9 +10,11 @@ are described in detail below. There is a quick-reference syntax summary in the
 \fBpcre2syntax\fP
 .\"
 page. PCRE2 tries to match Perl syntax and semantics as closely as it can.
-PCRE2 also supports some alternative regular expression syntax (which does not
-conflict with the Perl syntax) in order to provide some compatibility with
-regular expressions in Python, .NET, and Oniguruma.
+PCRE2 also supports some alternative regular expression syntax that does not
+conflict with the Perl syntax in order to provide some compatibility with
+regular expressions in Python, .NET, and Oniguruma. There are in addition some
+options that enable alternative syntax and semantics that are not the same as
+in Perl.
 .P
 Perl's regular expressions are described in its own documentation, and regular
 expressions in general are covered in a number of books, some of which have
@@ -31,6 +33,23 @@ function, are discussed in the
 \fBpcre2matching\fP
 .\"
 page.
+.
+.
+.SH "EBCDIC CHARACTER CODES"
+.rs
+.sp
+Most computers use ASCII or Unicode for encoding characters, and PCRE2 assumes
+this by default. However, it can be compiled to run in an environment that uses
+the EBCDIC code, which is the case for some IBM mainframe operating systems. In
+the sections below, character code values are ASCII or Unicode; in an EBCDIC
+environment these characters may have different code values, and there are no
+code points greater than 255. Differences in behaviour when PCRE2 is running in
+an EBCDIC environment are described in the section
+.\" HTML <a href="#ebcdicenvironments">
+.\" </a>
+"EBCDIC environments"
+.\"
+below, which you can ignore unless you really are in an EBCDIC environment.
 .
 .
 .SH "SPECIAL START-OF-PATTERN ITEMS"
@@ -252,16 +271,6 @@ at compile time. This effect can also be achieved by starting a pattern with
 corresponding to PCRE2_BSR_UNICODE.
 .
 .
-.SH "EBCDIC CHARACTER CODES"
-.rs
-.sp
-PCRE2 can be compiled to run in an environment that uses EBCDIC as its
-character code instead of ASCII or Unicode (typically a mainframe system). In
-the sections below, character code values are ASCII or Unicode; in an EBCDIC
-environment these characters may have different code values, and there are no
-code points greater than 255.
-.
-.
 .SH "CHARACTERS AND METACHARACTERS"
 .rs
 .sp
@@ -480,26 +489,13 @@ lower case letter, it is converted to upper case. Then bit 6 of the character
 the code unit following \ec has a code point less than 32 or greater than 126,
 a compile-time error occurs.
 .P
-When PCRE2 is compiled in EBCDIC mode, \eN{U+hhh..} is not supported. \ea, \ee,
-\ef, \en, \er, and \et generate the appropriate EBCDIC code values. The \ec
-escape is processed as specified for Perl in the \fBperlebcdic\fP document. The
-only characters that are allowed after \ec are A-Z, a-z, or one of @, [, \e, ],
-^, _, or ?. Any other character provokes a compile-time error. The sequence
-\ec@ encodes character code 0; after \ec the letters (in either case) encode
-characters 1-26 (hex 01 to hex 1A); [, \e, ], ^, and _ encode characters 27-31
-(hex 1B to hex 1F), and \ec? becomes either 255 (hex FF) or 95 (hex 5F).
-.P
-Thus, apart from \ec?, these escapes generate the same character code values as
-they do in an ASCII environment, though the meanings of the values mostly
-differ. For example, \ecG always generates code value 7, which is BEL in ASCII
-but DEL in EBCDIC.
-.P
-The sequence \ec? generates DEL (127, hex 7F) in an ASCII environment, but
-because 127 is not a control character in EBCDIC, Perl makes it generate the
-APC character. Unfortunately, there are several variants of EBCDIC. In most of
-them the APC character has the value 255 (hex FF), but in the one Perl calls
-POSIX-BC its value is 95 (hex 5F). If certain other characters have POSIX-BC
-values, PCRE2 makes \ec? generate 95; otherwise it generates 255.
+For differences in the way some escapes behave in EBCDIC environments,
+see section
+.\" HTML <a href="#ebcdicenvironments">
+.\" </a>
+"EBCDIC environments"
+.\"
+below.
 .
 .
 .SS "Octal escapes and back references"
@@ -1449,13 +1445,12 @@ subject character must not be in the set defined by the class. If a circumflex
 is actually required as a member of the class, ensure it is not the first
 character, or escape it with a backslash.
 .P
-For example, the character class [aeiou] matches any lower case vowel, while
-[^aeiou] matches any character that is not a lower case vowel. Note that a
-circumflex is just a convenient notation for specifying the characters that
-are in the class by enumerating those that are not. A class that starts with a
-circumflex is not an assertion; it still consumes a character from the subject
-string, and therefore it fails if the current pointer is at the end of the
-string.
+For example, the character class [aeiou] matches any lower case English vowel,
+whereas [^aeiou] matches all other characters. Note that a circumflex is just a
+convenient notation for specifying the characters that are in the class by
+enumerating those that are not. A class that starts with a circumflex is not an
+assertion; it still consumes a character from the subject string, and therefore
+it fails to match if the current pointer is at the end of the string.
 .P
 Characters in a class may be specified by their code points using \eo, \ex, or
 \eN{U+hh..} in the usual way. When caseless matching is set, any letters in a
@@ -1464,7 +1459,10 @@ a caseless [aeiou] matches "A" as well as "a", and a caseless [^aeiou] does not
 match "A", whereas a caseful version would. Note that there are two ASCII
 characters, K and S, that, in addition to their lower case ASCII equivalents,
 are case-equivalent with Unicode U+212A (Kelvin sign) and U+017F (long S)
-respectively when either PCRE2_UTF or PCRE2_UCP is set.
+respectively when either PCRE2_UTF or PCRE2_UCP is set. If you do not want
+these ASCII/non-ASCII case equivalences, you can suppress them by setting
+PCRE2_EXTRA_CASELESS_RESTRICT, either as an option in a compile context, or by
+including (*CASELESS_RESTRICT) or (?r) within a pattern.
 .P
 Characters that might indicate line breaks are never treated in any special way
 when matching character classes, whatever line-ending sequence is in use, and
@@ -1495,6 +1493,14 @@ indicating a range, typically as the first or last character in the class,
 or immediately after a range. For example, [b-d-z] matches letters in the range
 b to d, a hyphen character, or z.
 .P
+There is some special treatment for alphabetic ranges in EBCDIC environments;
+see the section
+.\" HTML <a href="#ebcdicenvironments">
+.\" </a>
+"EBCDIC environments"
+.\"
+below.
+.P
 Perl treats a hyphen as a literal if it appears before or after a POSIX class
 (see below) or before or after a character type escape such as \ed or \eH.
 However, unless the hyphen is the last character in the class, Perl outputs a
@@ -1505,9 +1511,9 @@ It is not possible to have the literal character "]" as the end character of a
 range. A pattern such as [W-]46] is interpreted as a class of two characters
 ("W" and "-") followed by a literal string "46]", so it would match "W46]" or
 "-46]". However, if the "]" is escaped with a backslash it is interpreted as
-the end of range, so [W-\e]46] is interpreted as a class containing a range
-followed by two other characters. The octal or hexadecimal representation of
-"]" can also be used to end a range.
+the end of a range, so [W-\e]46] is interpreted as a class containing a range
+and two other characters. The octal or hexadecimal representation of "]" can
+also be used to end a range.
 .P
 Ranges normally include all code points between the start and end characters,
 inclusive. They can also be used for code points specified numerically, for
@@ -1517,14 +1523,6 @@ whose code points lie between 0xd800 and 0xdfff inclusive) may not be specified
 explicitly by default (the PCRE2_EXTRA_ALLOW_SURROGATE_ESCAPES option disables
 this check). However, ranges such as [\ex{d7ff}-\ex{e000}], which include the
 surrogates, are always permitted.
-.P
-There is a special case in EBCDIC environments for ranges whose end points are
-both specified as literal letters in the same case. For compatibility with
-Perl, EBCDIC code points within the range that are not letters are omitted. For
-example, [h-k] matches only four characters, even though the codes for h and k
-are 0x88 and 0x92, a range of 11 code points. However, if the range is
-specified numerically, for example, [\ex88-\ex92] or [h-\ex92], all code points
-are included.
 .P
 If a range that includes letters is used when caseless matching is set, it
 matches the letters in either case. For example, [W-c] is equivalent to
@@ -1539,20 +1537,132 @@ whereas [\ew] includes underscore. A positive character class should be read as
 "something OR something OR ..." and a negative class as "NOT something AND NOT
 something AND NOT ...".
 .P
-The only metacharacters that are recognized in character classes are backslash,
-hyphen (only where it can be interpreted as specifying a range), circumflex
-(only at the start), opening square bracket (only when it can be interpreted as
-introducing a POSIX class name, or for a special compatibility feature - see
-the next two sections), and the terminating closing square bracket. However,
-escaping other non-alphanumeric characters does no harm.
+The metacharacters that are recognized in character classes are backslash,
+hyphen (when it can be interpreted as specifying a range), circumflex
+(only at the start), and the terminating closing square bracket. An opening
+square bracket is also special when it can be interpreted as introducing a
+POSIX class (see
+.\" HTML <a href="#posixclasses">
+.\" </a>
+"Posix character classes"
+.\"
+below), or a special compatibility feature (see
+.\" HTML <a href="#wordboundcompat">
+.\" </a>
+"Compatibility feature for word boundaries"
+.\"
+below. Escaping any non-alphanumeric character in a class turns it into a
+literal, whether or not it would otherwise be a metacharacter.
 .
 .
+.SH "PERL EXTENDED CHARACTER CLASSES"
+.rs
+.sp
+From release 10.45 PCRE2 supports Perl's (?[...]) extended character class
+syntax. This can be used to perform set operations such as intersection on
+character classes.
+.P
+The syntax permitted within (?[...]) is quite different to ordinary character
+classes. Inside the extended class, there is an expression syntax consisting of
+"atoms", operators, and ordinary parentheses "()" used for grouping. Such
+classes always have the Perl /xx modifier (PCRE2 option PCRE2_EXTENDED_MORE)
+turned on within them. This means that literal space and tab characters are
+ignored everywhere in the class.
+.P
+The allowed atoms are individual characters specified by escape sequences such
+as \en or \ex{123}, character types such as \ed, POSIX classes such as
+[:alpha:], and nested ordinary (non-extended) character classes. For example,
+in (?[\ed & [...]]) the nested class [...] follows the usual rules for ordinary
+character classes, in which parentheses are not metacharacters, and character
+literals and ranges are permitted.
+.P
+Character literals and ranges may not appear outside a nested ordinary
+character class because they are not atoms in the extended syntax. The extended
+syntax does not introduce any additional escape sequences, so (?[\ey]) is an
+unknown escape, as it would be in [\ey].
+.P
+In the extended syntax, ^ does not negate a class (except within an
+ordinary class nested inside an extended class); it is instead a binary
+operator.
+.P
+The binary operators are "&" (intersection), "|" or "+" (union), "-"
+(subtraction) and "^" (symmetric difference). These are left-associative and
+"&" has higher (tighter) precedence, while the others have equal lower
+precedence. The one prefix unary operator is "!" (complement), with highest
+precedence.
+.
+.
+.SH "UTS#18 EXTENDED CHARACTER CLASSES"
+.rs
+.sp
+The PCRE2_ALT_EXTENDED_CLASS option enables an alternative to Perl's (?[...])
+syntax, allowing instead extended class behaviour inside ordinary [...]
+character classes. This altered syntax for [...] classes is loosely described
+by the Unicode standard UTS#18. The PCRE2_ALT_EXTENDED_CLASS option does not
+prevent use of (?[...]) classes; it just changes the meaning of all
+[...] classes that are not nested inside a Perl (?[...]) class.
+.P
+Firstly, in ordinary Perl [...] syntax, an expression such as "[a[]" is a
+character class with two literal characters "a" and "[", but in UTS#18 extended
+classes the "[" character becomes an additional metacharacter within classes,
+denoting the start of a nested class, so a literal "[" must be escaped as "\e[".
+.P
+Secondly, within the UTS#18 extended syntax, there are operators "||", "&&",
+"--" and "~~" which denote character class union, intersection, subtraction,
+and symmetric difference respectively. In standard Perl syntax, these would
+simply be needlessly-repeated literals (except for "--" which could be the
+start or end of a range). In UTS#18 extended classes these operators can be used
+in constructs such as [\ep{L}--[QW]] for "Unicode letters, other than Q and W".
+A literal "-" at the start or end of a range must be escaped, so while "[--1]"
+in Perl syntax is the range from hyphen to "1", it must be escaped as "[\e--1]"
+in UTS#18 extended classes.
+.P
+Unlike Perl's (?[...]) extended classes, the PCRE2_EXTENDED_MORE option to
+ignore space and tab characters is not automatically enabled for UTS#18
+extended classes, but it is honoured if set.
+.P
+Extended UTS#18 classes can be nested, and nested classes are themselves
+extended classes (unlike Perl, where nested classes must be simple classes).
+For example, [\ep{L}&&[\ep{Thai}||\ep{Greek}]] matches any letter that is in
+the Thai or Greek scripts. Note that this means that no special grouping
+characters (such as the parentheses used in Perl's (?[...]) class syntax) are
+needed.
+.P
+Individual class items (literal characters, literal ranges, properties such as
+\ed or \ep{...}, and nested classes) can be combined by juxtaposition or by an
+operator. Juxtaposition is the implicit union operator, and binds more tightly
+than any explicit operator. Thus a sequence of literals and/or ranges behaves
+as if it is enclosed in square brackets. For example, [A-Z0-9&&[^E8]] is the
+same as [[A-Z0-9]&&[^E8]], which matches any upper case alphanumeric character
+except "E" or "8".
+.P
+Precedence between the explicit operators is not defined, so mixing operators
+is a syntax error. For example, [A&&B--C] is an error, but [A&&[B--C]] is
+valid.
+.P
+This is an emerging syntax which is being adopted gradually across the regex
+ecosystem: for example JavaScript adopted the "/v" flag in ECMAScript 2024;
+Python's "re" module reserves the syntax for future use with a FutureWarning
+for unescaped use of "[" as a literal within character classes. Due to UTS#18
+providing insufficient guidance, engines interpret the syntax differently.
+Rust's "regex" crate and Python's "regex" PyPi module both implement UTS#18
+extended classes, but with slight incompatibilities ([A||B&&C] is parsed as
+[A||[B&&C]] in Python's "regex" but as [[A||B]&&C] in Rust's "regex").
+.P
+PCRE2's syntax adds syntax restrictions similar to ECMASCript's /v flag, so
+that all the UTS#18 extended classes accepted as valid by PCRE2 have the
+property that they are interpreted either with the same behaviour, or as
+invalid, by all other major engines. Please file an issue if you are aware of
+cross-engine differences in behaviour between PCRE2 and another major engine.
+.
+.
+.\" HTML <a name="posixclasses"></a>
 .SH "POSIX CHARACTER CLASSES"
 .rs
 .sp
 Perl supports the POSIX notation for character classes. This uses names
 enclosed by [: and :] within the enclosing square brackets. PCRE2 also supports
-this notation. For example,
+this notation, in both ordinary and extended classes. For example,
 .sp
   [01[:alpha:]%]
 .sp
@@ -1631,7 +1741,7 @@ property.
 [:xdigit:]
 In addition to the ASCII hexadecimal digits, this also matches the "fullwidth"
 versions of those characters, whose Unicode code points start at U+FF10. This
-is a change that was made in PCRE release 10.43 for Perl compatibility.
+is a change that was made in PCRE2 release 10.43 for Perl compatibility.
 .P
 The other POSIX classes are unchanged by PCRE2_UCP, and match only characters
 with code points less than 256.
@@ -1644,6 +1754,7 @@ for all POSIX classes, including [:digit:] and [:xdigit:]. Within a pattern,
 (?aP) and (?-aP) set and unset both these options for consistency.
 .
 .
+.\" HTML <a name="wordboundcompat"></a>
 .SH "COMPATIBILITY FEATURE FOR WORD BOUNDARIES"
 .rs
 .sp
@@ -3552,8 +3663,9 @@ present. When one of these optimizations bypasses the running of a match, any
 included backtracking verbs will not, of course, be processed. You can suppress
 the start-of-match optimizations by setting the PCRE2_NO_START_OPTIMIZE option
 when calling \fBpcre2_compile()\fP, by calling \fBpcre2_set_optimize()\fP with a
-PCRE_START_OPTIMIZE_OFF directive, or by starting the pattern with (*NO_START_OPT).
-There is more discussion of this option in the section entitled
+PCRE2_START_OPTIMIZE_OFF directive, or by starting the pattern with
+(*NO_START_OPT). There is more discussion of this option in the section
+entitled
 .\" HTML <a href="pcre2api.html#compiling">
 .\" </a>
 "Compiling a pattern"
@@ -4008,6 +4120,51 @@ is no such group within the subroutine's group, the subroutine match fails and
 there is a backtrack at the outer level.
 .
 .
+.\" HTML <a name="ebcdicenvironments"></a>
+.SH "EBCDIC ENVIRONMENTS"
+.rs
+.sp
+Differences in the way PCRE behaves when it is running in an EBCDIC environment
+are covered in this section.
+.
+.
+.SS "Escape sequences"
+.rs
+.sp
+When PCRE2 is compiled in EBCDIC mode, \eN{U+hhh..} is not supported. \ea, \ee,
+\ef, \en, \er, and \et generate the appropriate EBCDIC code values. The \ec
+escape is processed as specified for Perl in the \fBperlebcdic\fP document. The
+only characters that are allowed after \ec are A-Z, a-z, or one of @, [, \e, ],
+^, _, or ?. Any other character provokes a compile-time error. The sequence
+\ec@ encodes character code 0; after \ec the letters (in either case) encode
+characters 1-26 (hex 01 to hex 1A); [, \e, ], ^, and _ encode characters 27-31
+(hex 1B to hex 1F), and \ec? becomes either 255 (hex FF) or 95 (hex 5F).
+.P
+Thus, apart from \ec?, these escapes generate the same character code values as
+they do in an ASCII or Unicode environment, though the meanings of the values
+mostly differ. For example, \ecG always generates code value 7, which is BEL in
+ASCII but DEL in EBCDIC.
+.P
+The sequence \ec? generates DEL (127, hex 7F) in an ASCII environment, but
+because 127 is not a control character in EBCDIC, Perl makes it generate the
+APC character. Unfortunately, there are several variants of EBCDIC. In most of
+them the APC character has the value 255 (hex FF), but in the one Perl calls
+POSIX-BC its value is 95 (hex 5F). If certain other characters have POSIX-BC
+values, PCRE2 makes \ec? generate 95; otherwise it generates 255.
+.
+.
+.SS "Character classes"
+.rs
+.sp
+In character classes there is a special case in EBCDIC environments for ranges
+whose end points are both specified as literal letters in the same case. For
+compatibility with Perl, EBCDIC code points within the range that are not
+letters are omitted. For example, [h-k] matches only four characters, even
+though the EBCDIC codes for h and k are 0x88 and 0x92, a range of 11 code
+points. However, if the range is specified numerically, for example,
+[\ex88-\ex92] or [h-\ex92], all code points are included.
+.
+.
 .SH "SEE ALSO"
 .rs
 .sp
@@ -4029,6 +4186,6 @@ Cambridge, England.
 .rs
 .sp
 .nf
-Last updated: 21 September 2024
+Last updated: 27 November 2024
 Copyright (c) 1997-2024 University of Cambridge.
 .fi

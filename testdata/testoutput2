@@ -1774,7 +1774,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x00-/:-@[-`{-\xff] (neg)
+        [^0-9A-Za-z]
         Ket
         End
 ------------------------------------------------------------------
@@ -1814,7 +1814,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x00-@[-`{-\xff] (neg)
+        [^A-Za-z]
         Ket
         End
 ------------------------------------------------------------------
@@ -1865,7 +1865,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x80-\xff] (neg)
+        [^\x00-\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -1901,7 +1901,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x00-\x08\x0a-\x1f!-\xff] (neg)
+        [^\x09 ]
         Ket
         End
 ------------------------------------------------------------------
@@ -2082,7 +2082,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [ -~\x80-\xff] (neg)
+        [^\x00-\x1f\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -2107,7 +2107,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x00-/12:-\xff] (neg)
+        [^03-9]
         Ket
         End
 ------------------------------------------------------------------
@@ -2134,7 +2134,7 @@ Subject length lower bound = 1
 ------------------------------------------------------------------
         Bra
         ^
-        [\x00-\x08\x0a-\x1f!-\xff] (neg)
+        [^\x09 ]
         Ket
         End
 ------------------------------------------------------------------
@@ -2170,13 +2170,13 @@ Starting code units: % 0 1 A B C D E F G H I J K L M N O P Q R S T U V W
 Subject length lower bound = 1
 
 /[[.ch.]]/I
-Failed: error 113 at offset 1: POSIX collating elements are not supported
+Failed: error 113 at offset 7: POSIX collating elements are not supported
 
 /[[=ch=]]/I
-Failed: error 113 at offset 1: POSIX collating elements are not supported
+Failed: error 113 at offset 7: POSIX collating elements are not supported
 
 /[[:rhubarb:]]/I
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 12: unknown POSIX class name
 
 /[[:upper:]]/Ii
 Capture group count = 0
@@ -2711,7 +2711,7 @@ Subject length lower bound = 1
 /[\S]/IB
 ------------------------------------------------------------------
         Bra
-        [\x00-\x08\x0e-\x1f!-\xff] (neg)
+        [^\x09-\x0d ]
         Ket
         End
 ------------------------------------------------------------------
@@ -3004,8 +3004,8 @@ Subject length lower bound = 1
 /[^x]{1,3}+/B,no_auto_possess
 ------------------------------------------------------------------
         Bra
-        [^x]
-        [^x]{0,2}+
+        [^x] (not)
+        [^x]{0,2}+ (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -3013,8 +3013,8 @@ Subject length lower bound = 1
 /[^x]{1,3}+/Bi,no_auto_possess
 ------------------------------------------------------------------
         Bra
-     /i [^x]
-     /i [^x]{0,2}+
+     /i [^x] (not)
+     /i [^x]{0,2}+ (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -7133,7 +7133,7 @@ Matched, but too many substrings
 /[^a]+a/B
 ------------------------------------------------------------------
         Bra
-        [^a]++
+        [^a]++ (not)
         a
         Ket
         End
@@ -7142,7 +7142,7 @@ Matched, but too many substrings
 /[^a]+a/Bi
 ------------------------------------------------------------------
         Bra
-     /i [^a]++
+     /i [^a]++ (not)
      /i a
         Ket
         End
@@ -7151,7 +7151,7 @@ Matched, but too many substrings
 /[^a]+A/Bi
 ------------------------------------------------------------------
         Bra
-     /i [^a]++
+     /i [^a]++ (not)
      /i A
         Ket
         End
@@ -7160,7 +7160,7 @@ Matched, but too many substrings
 /[^a]+b/B
 ------------------------------------------------------------------
         Bra
-        [^a]+
+        [^a]+ (not)
         b
         Ket
         End
@@ -7169,7 +7169,7 @@ Matched, but too many substrings
 /[^a]+\d/B
 ------------------------------------------------------------------
         Bra
-        [^a]+
+        [^a]+ (not)
         \d
         Ket
         End
@@ -7179,7 +7179,7 @@ Matched, but too many substrings
 ------------------------------------------------------------------
         Bra
         a*+
-        [^a]
+        [^a] (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -8775,31 +8775,31 @@ Failed: error 162 at offset 4: subpattern name expected
 Failed: error 162 at offset 4: subpattern name expected
 
 /[[:foo:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 8: unknown POSIX class name
 
 /[[:1234:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 9: unknown POSIX class name
 
 /[[:f\oo:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 9: unknown POSIX class name
 
 /[[: :]]/
-Failed: error 130 at offset 3: unknown POSIX class name
-
-/[[:...:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
-
-/[[:l\ower:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
-
-/[[:abc\:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
-
-/[abc[:x\]pqr:]]/
 Failed: error 130 at offset 6: unknown POSIX class name
 
+/[[:...:]]/
+Failed: error 130 at offset 8: unknown POSIX class name
+
+/[[:l\ower:]]/
+Failed: error 130 at offset 11: unknown POSIX class name
+
+/[[:abc\:]]/
+Failed: error 130 at offset 9: unknown POSIX class name
+
+/[abc[:x\]pqr:]]/
+Failed: error 130 at offset 14: unknown POSIX class name
+
 /[[:a\dz:]]/
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 9: unknown POSIX class name
 
 /(^(a|b\g<-1'c))/
 Failed: error 157 at offset 8: \g is not followed by a braced, angle-bracketed, or quoted name/number or by a plain number
@@ -9444,10 +9444,10 @@ Partial match: ab
         Cond false
         CBra 1
         <
-        [^m]
-        [^>]
+        [^m] (not)
+        [^>] (not)
         >
-        [^<]
+        [^<] (not)
         Ket
         CBra 2
         \w*+
@@ -9466,10 +9466,10 @@ Partial match: ab
         Cond false
         CBra 1
         <
-        [\x00-/:-\xff] (neg)
-        [^>]
+        [^0-9]
+        [^>] (not)
         >
-        [^<]
+        [^<] (not)
         Ket
         CBra 2
         \w*+
@@ -11524,7 +11524,7 @@ Failed: error 171 at offset 4: \N is not supported in a class
     aNc
 
 /a[B-\Nc]/
-Failed: error 150 at offset 6: invalid range in character class
+Failed: error 171 at offset 6: \N is not supported in a class
 
 /a[B\Nc]/
 Failed: error 171 at offset 5: \N is not supported in a class
@@ -13082,11 +13082,11 @@ Subject length lower bound = 5
         [a-d]{5,12}+
         [0-9e-z]*+
         #
-        [\x00-`{-\xff] (neg)++
+        [^a-z]++
         [b-y]*+
         a
         [2-7]?+
-        [\x00-/:-`{-\xff] (neg)++
+        [^0-9a-z]++
         Ket
         End
 ------------------------------------------------------------------
@@ -13325,7 +13325,7 @@ Failed: error 178 at offset 5: digits missing after \x or in \x{} or \o{} or \N{
 /[^ab]*+/B,no_auto_possess
 ------------------------------------------------------------------
         Bra
-        [\x00-`c-\xff] (neg)*+
+        [^ab]*+
         Ket
         End
 ------------------------------------------------------------------
@@ -13347,16 +13347,16 @@ Failed: error 178 at offset 5: digits missing after \x or in \x{} or \o{} or \N{
 ------------------------------------------------------------------
 
 /[a-[:digit:]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 12: invalid range in character class
 
 /[A-[:digit:]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 12: invalid range in character class
 
 /[a-[.xxx.]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 10: invalid range in character class
 
 /[a-[=xxx=]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 10: invalid range in character class
 
 /[a-[!xxx!]]+/
 Failed: error 108 at offset 3: range out of order in character class
@@ -13476,8 +13476,31 @@ No match
     Alfred Winifred
 No match
 
+/[[:<:]]+red/B
+------------------------------------------------------------------
+        Bra
+        \b
+        Assert
+        \w
+        Ket
+        Brazero
+        Assert
+        \w
+        Ket
+        red
+        Ket
+        End
+------------------------------------------------------------------
+    little red riding hood
+ 0: red
+    red is a colour
+ 0: red
+\= Expect no match
+    Alfred
+No match
+
 /[a[:<:]] should give error/
-Failed: error 130 at offset 4: unknown POSIX class name
+Failed: error 130 at offset 7: unknown POSIX class name
 
 /(?=ab\K)/aftertext,allow_lookaround_bsk
     abcd\=startchar
@@ -13884,6 +13907,61 @@ Failed: error -48: no more memory: 23 code units are needed
  1: fruit\x00juice lemon blackberry
 
 /abc/
+    123abc123\=replace=XYZ
+ 1: 123XYZ123
+    123abc123\=replace=[10]XYZ
+ 1: 123XYZ123
+\= Expect error
+    123abc123\=replace=[9]XYZ
+Failed: error -48: no more memory
+    123abc123\=substitute_overflow_length,replace=[9]XYZ
+Failed: error -48: no more memory: 10 code units are needed
+    123abc123\=substitute_overflow_length,replace=[6]XYZ
+Failed: error -48: no more memory: 10 code units are needed
+    123abc123\=substitute_overflow_length,replace=[1]XYZ
+Failed: error -48: no more memory: 10 code units are needed
+    123abc123\=substitute_overflow_length,replace=[0]XYZ
+Failed: error -48: no more memory: 10 code units are needed
+
+/abc/
+    123abc123\=replace=XY
+ 1: 123XY123
+    123abc123\=replace=[9]XY
+ 1: 123XY123
+    123abc123\=replace=[9]XY,substitute_literal
+ 1: 123XY123
+\= Expect error
+    123abc123\=replace=[8]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[8]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[6]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[6]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[5]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[5]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[4]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[4]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[3]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[3]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[2]XY,substitute_overflow_length
+Failed: error -48: no more memory: 9 code units are needed
+    123abc123\=replace=[2]XY,substitute_overflow_length,substitute_literal
+Failed: error -48: no more memory: 9 code units are needed
+
+/abc/substitute_literal
+    123abc123\=replace=XYZ
+ 1: 123XYZ123
+    123abc123\=replace=[10]XYZ
+ 1: 123XYZ123
+\= Expect error
     123abc123\=replace=[9]XYZ
 Failed: error -48: no more memory
     123abc123\=substitute_overflow_length,replace=[9]XYZ
@@ -15131,7 +15209,7 @@ No match
 /abcd/null_context
     abcd\=null_context
  0: abcd
-\= Expect error - not allowed together
+\= Expect not allowed together
     abcd\=null_context,find_limits
 ** Not allowed together: find_limits null_context
     abcd\=allusedtext,startchar
@@ -15594,7 +15672,7 @@ Subject length lower bound = 0
         T?
         *MARK ;.'?`(\x{ea}p
         {!
-        [\x00- "-&+-:<->@-BD-xz-\xff] (neg)
+        [^!'-*;?Cy]
         {1;
         CBra 1
         \x08
@@ -15879,11 +15957,11 @@ Failed: error 125 at offset 13: length of lookbehind assertion is not limited
 # Perl accepts these, but gives a warning. We can't warn, so give an error.
 
 /[a-[:digit:]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 12: invalid range in character class
     a-a9-a
 
 /[A-[:digit:]]+/
-Failed: error 150 at offset 4: invalid range in character class
+Failed: error 150 at offset 12: invalid range in character class
     A-A9-A
 
 /[a-\d]+/
@@ -16020,7 +16098,7 @@ Failed: error 128 at offset 63: atomic assertion expected after (?( or (?(?C)
     .+(?(?C'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'))?!XXXX.=X
 
 /[:[:alnum:]-[[a:lnum:]+/
-Failed: error 150 at offset 11: invalid range in character class
+Failed: error 150 at offset 12: invalid range in character class
 
 /((?(?C'')\QX\E(?!((?(?C'')(?!X=X));=)r*X=X));=)/
 Failed: error 128 at offset 11: atomic assertion expected after (?( or (?(?C)
@@ -16654,10 +16732,10 @@ Subject length lower bound = 3
 ------------------------------------------------------------------
 
 /[Q-\N]/B,bad_escape_is_literal
-Failed: error 150 at offset 5: invalid range in character class
+Failed: error 171 at offset 5: \N is not supported in a class
 
 /[\s-_]/bad_escape_is_literal
-Failed: error 150 at offset 3: invalid range in character class
+Failed: error 150 at offset 4: invalid range in character class
 
 /[_-\s]/bad_escape_is_literal
 Failed: error 150 at offset 5: invalid range in character class
@@ -16857,19 +16935,19 @@ No match
 No match
 
 /[[:digit:]-a]/
-Failed: error 150 at offset 10: invalid range in character class
+Failed: error 150 at offset 11: invalid range in character class
 
 /[[:digit:]-[:print:]]/
-Failed: error 150 at offset 10: invalid range in character class
+Failed: error 150 at offset 11: invalid range in character class
 
 /[\d-a]/
-Failed: error 150 at offset 3: invalid range in character class
+Failed: error 150 at offset 4: invalid range in character class
 
 /[\H-z]/
-Failed: error 150 at offset 3: invalid range in character class
+Failed: error 150 at offset 4: invalid range in character class
 
 /[\d-[:print:]]/
-Failed: error 150 at offset 3: invalid range in character class
+Failed: error 150 at offset 4: invalid range in character class
 
 # Perl gets the second of these wrong, giving no match.
 
@@ -18065,6 +18143,9 @@ Failed: error -55 at offset 3 in replacement: requested value is not set
 /abc/replace=\U$0,substitute_extended,substitute_case_callout=a.U.b.V.
     XabcY
  1: XUVcY
+\= Expect not supported
+    XabcY\=null_context
+** Replacement case callouts are not supported with null_context.
 
 /a/substitute_extended
     XaY\=replace=\U$0,substitute_case_callout=a.U.
@@ -18614,13 +18695,13 @@ Failed: error 114 at offset 18: missing closing parenthesis
 Failed: error 114 at offset 13: missing closing parenthesis
 
 /(*scs:(1)a|b)/
-Failed: error 115 at offset 6: reference to non-existent subpattern
+Failed: error 115 at offset 7: reference to non-existent subpattern
 
 /(*scs:(0)a)/
 Failed: error 115 at offset 8: reference to non-existent subpattern
 
 /(*scan_substring:(1)a|b)/
-Failed: error 115 at offset 17: reference to non-existent subpattern
+Failed: error 115 at offset 18: reference to non-existent subpattern
 
 /(*scs:(<name>)a|b)/
 Failed: error 115 at offset 8: reference to non-existent subpattern
@@ -18630,6 +18711,12 @@ Failed: error 115 at offset 19: reference to non-existent subpattern
 
 /()(*scs:(1)+a)/
 Failed: error 109 at offset 11: quantifier does not follow a repeatable item
+
+/()(*scs:(1,1,1,1,1,1,1,1,2))/
+Failed: error 115 at offset 25: reference to non-existent subpattern
+
+/()()(*scs:(1,2,1,2,1,2,2,'XYZ'))/
+Failed: error 115 at offset 26: reference to non-existent subpattern
 
 # Tests for iterating scan_substring
 
@@ -19470,6 +19557,25 @@ No match
     ac
 No match
 
+/()()()(?<=ab(*scs:(1,2,3))cd)xyz/
+    abcdxyz
+ 0: xyz
+ 1: 
+ 2: 
+ 3: 
+
+/()()()(?<=ab(*ACCEPT)(*scs:(1,2,3))cd|efg)xyz/
+    abxyz
+ 0: xyz
+ 1: 
+ 2: 
+ 3: 
+    efgxyz
+ 0: xyz
+ 1: 
+ 2: 
+ 3: 
+
 # Tests for pcre2_set_optimize()
 
 /abc/I,optimization_none
@@ -19611,6 +19717,1327 @@ Failed: error -49 at offset 3 in replacement: unknown substring
 
 /a(?C)b/never_callout
 Failed: error 203 at offset 3: using callouts is disabled by the application
+
+# --------------
+
+# EXTENDED CHARACTER CLASSES (UTS#18)
+
+/[a[]/
+    [
+ 0: [
+
+/[a[]/alt_extended_class
+Failed: error 106 at offset 4: missing terminating ] for character class
+
+/[a[B]/alt_extended_class
+Failed: error 212 at offset 5: missing terminating ] for extended character class (note '[' must be escaped under PCRE2_ALT_EXTENDED_CLASS)
+
+/[a[B]]C/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [Ba]
+        C
+        Ket
+        End
+------------------------------------------------------------------
+    aC
+ 0: aC
+    BC
+ 0: BC
+\= Expect no match
+    [C
+No match
+
+/[[A][B]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [AB]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    B
+ 0: B
+\= Expect no match
+    [
+No match
+    ]
+No match
+
+/[[A]||[B]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [AB]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    B
+ 0: B
+\= Expect no match
+    C
+No match
+
+/[[^A][B]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^A]
+        Ket
+        End
+------------------------------------------------------------------
+    B
+ 0: B
+    C
+ 0: C
+\= Expect no match
+    A
+No match
+
+/[^[A][B]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^AB]
+        Ket
+        End
+------------------------------------------------------------------
+    C
+ 0: C
+\= Expect no match
+    A
+No match
+    B
+No match
+
+/[^[A]&&[B]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    B
+ 0: B
+    C
+ 0: C
+
+/[[AC]||[BC]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A-C]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    B
+ 0: B
+    C
+ 0: C
+\= Expect no match
+    D
+No match
+
+/[[AC]&&[BC]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [C]
+        Ket
+        End
+------------------------------------------------------------------
+    C
+ 0: C
+\= Expect no match
+    A
+No match
+    B
+No match
+    D
+No match
+
+/[[AC]--[BC]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    B
+No match
+    C
+No match
+    D
+No match
+
+/[[AC]~~[BC]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [AB]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    B
+ 0: B
+\= Expect no match
+    C
+No match
+    D
+No match
+
+/[A[]]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A\]]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    ]
+ 0: ]
+\= Expect no match
+    [
+No match
+
+/[A[^]]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^\]]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    [
+ 0: [
+    C
+ 0: C
+\= Expect no match
+    ]
+No match
+
+/[A[]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [A]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    ]
+No match
+    [
+No match
+
+/[A[^]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    C
+ 0: C
+    [
+ 0: [
+    ]
+ 0: ]
+
+/[A-C--B]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [AC]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    C
+ 0: C
+\= Expect no match
+    B
+No match
+
+/[^A-C--B]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^AC]
+        Ket
+        End
+------------------------------------------------------------------
+    B
+ 0: B
+\= Expect no match
+    A
+No match
+    C
+No match
+
+/[[\d\D]--b]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^b]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    c
+ 0: c
+\= Expect no match
+    b
+No match
+
+/[\dAC-E[:space:]&&[^z]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\x09-\x0d 0-9AC-E]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    A
+ 0: A
+    C
+ 0: C
+    D
+ 0: D
+    E
+ 0: E
+    \t
+ 0: \x09
+\= Expect no match
+    B
+No match
+    F
+No match
+    ;
+No match
+
+/[z||[^\dAC-E[:space:]]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^\x09-\x0d 0-9AC-E]
+        Ket
+        End
+------------------------------------------------------------------
+    z
+ 0: z
+    B
+ 0: B
+    F
+ 0: F
+    ;
+ 0: ;
+\= Expect no match
+    0
+No match
+    A
+No match
+    C
+No match
+    D
+No match
+    E
+No match
+    \t
+No match
+
+/[ab||cd]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [a-d]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[[a]b||[c]d]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [a-d]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[a[b]||c[d]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [a-d]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[-&&-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+\= Expect no match
+    a
+No match
+
+/[a-&&-a]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-a]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/[-a&&a-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-a]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/[[a]-&&-[a]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-a]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/[-[a]&&[a]-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-a]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/(?xx:[  ^  a[  ^  b]  ])/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        [b]
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+    b
+ 0: b
+\= Expect no match
+    A
+No match
+    a
+No match
+    c
+No match
+
+/[  ^  a[  ^  b]  ]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [ ^ab]
+        Ket
+        End
+------------------------------------------------------------------
+    \x20
+ 0:  
+    ^
+ 0: ^
+    a
+ 0: a
+    b
+ 0: b
+\= Expect no match
+    c
+No match
+
+/[a-c--b]+/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [ac]++
+        Ket
+        End
+------------------------------------------------------------------
+    ac
+ 0: ac
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/[a-c--b]{2,3}/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [ac]{2,3}+
+        Ket
+        End
+------------------------------------------------------------------
+    ac
+ 0: ac
+    cac
+ 0: cac
+\= Expect no match
+    a
+No match
+    bb
+No match
+
+/x[a-c--b]+y/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        x
+        [ac]++
+        y
+        Ket
+        End
+------------------------------------------------------------------
+    xacy
+ 0: xacy
+    xaay
+ 0: xaay
+    xay
+ 0: xay
+\= Expect no match
+    zacy
+No match
+    xacz
+No match
+    xy
+No match
+    xby
+No match
+
+/[A--B--C--D]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    B
+No match
+
+/[A--A--A]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        []
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    A
+No match
+    B
+No match
+
+/[[A--A]--A]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        []
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    A
+No match
+    B
+No match
+
+/[A--[A--A]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    B
+No match
+
+/[A--^B]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    B
+No match
+    ^
+No match
+    z
+No match
+
+/([a-z--n])\1/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        CBra 1
+        [a-mo-z]
+        Ket
+        \1
+        Ket
+        End
+------------------------------------------------------------------
+    aa
+ 0: aa
+ 1: a
+    zz
+ 0: zz
+ 1: z
+\= Expect no match
+    az
+No match
+    nn
+No match
+
+/(x[a-z--n]y)\1/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        CBra 1
+        x
+        [a-mo-z]
+        y
+        Ket
+        \1
+        Ket
+        End
+------------------------------------------------------------------
+    xayxay
+ 0: xayxay
+ 1: xay
+    xzyxzy
+ 0: xzyxzy
+ 1: xzy
+\= Expect no match
+    xnyxny
+No match
+
+/(?:_\1|([a-z--n])){2}/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        Ket
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+    a_a
+ 0: a_a
+ 1: a
+    z_z
+ 0: z_z
+ 1: z
+\= Expect no match
+    a_z
+No match
+    n_n
+No match
+
+/(?:_\1|([a-z--n]))+/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        KetRmax
+        Ket
+        End
+------------------------------------------------------------------
+    a_a
+ 0: a_a
+ 1: a
+    z_z
+ 0: z_z
+ 1: z
+    a_partial
+ 0: a
+ 1: a
+\= Expect no match
+    n_n
+No match
+
+/[\d-[z]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-0-9z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[\d-||z]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-0-9z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[z[\d-]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-0-9z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[1-[z]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-1z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[1-||z]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-1z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[z[1-]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-1z]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    -
+ 0: -
+    z
+ 0: z
+
+/[a--/alt_extended_class
+Failed: error 106 at offset 4: missing terminating ] for character class
+
+/[a--a/alt_extended_class
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/[a--[a/alt_extended_class
+Failed: error 106 at offset 6: missing terminating ] for character class
+
+/[a--[a]/alt_extended_class
+Failed: error 212 at offset 7: missing terminating ] for extended character class (note '[' must be escaped under PCRE2_ALT_EXTENDED_CLASS)
+
+/[a--[a]--/alt_extended_class
+Failed: error 212 at offset 9: missing terminating ] for extended character class (note '[' must be escaped under PCRE2_ALT_EXTENDED_CLASS)
+
+/[a--]/alt_extended_class
+Failed: error 210 at offset 5: expected operand after operator in extended character class
+
+/[--a]/alt_extended_class
+Failed: error 209 at offset 3: unexpected operator in extended character class (no preceding operand)
+
+/[^--a]/alt_extended_class
+Failed: error 209 at offset 4: unexpected operator in extended character class (no preceding operand)
+
+/[--]/alt_extended_class
+Failed: error 209 at offset 3: unexpected operator in extended character class (no preceding operand)
+
+/[a---b]/alt_extended_class
+Failed: error 208 at offset 5: invalid operator in extended character class
+
+/[a----b]/alt_extended_class
+Failed: error 208 at offset 6: invalid operator in extended character class
+
+/[a&&&b]/alt_extended_class
+Failed: error 208 at offset 5: invalid operator in extended character class
+
+/[a|||b]/alt_extended_class
+Failed: error 208 at offset 5: invalid operator in extended character class
+
+/[a~~~b]/alt_extended_class
+Failed: error 208 at offset 5: invalid operator in extended character class
+
+/[a~~~~b]/alt_extended_class
+Failed: error 208 at offset 6: invalid operator in extended character class
+
+/[a~~/alt_extended_class
+Failed: error 106 at offset 4: missing terminating ] for character class
+
+/[a~~~/alt_extended_class
+Failed: error 208 at offset 5: invalid operator in extended character class
+
+/[a~~~~/alt_extended_class
+Failed: error 208 at offset 6: invalid operator in extended character class
+
+/[a||b&&c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a||b~~c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a~~b&&c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a--b~~c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a--b&&c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a||b--c]/alt_extended_class
+Failed: error 211 at offset 7: square brackets needed to clarify operator precedence in extended character class
+
+/[a||[b--c]]/alt_extended_class
+    a
+ 0: a
+    b
+ 0: b
+\= Expect no match
+    c
+No match
+
+/[\d-z]/B,alt_extended_class
+Failed: error 150 at offset 4: invalid range in character class
+
+/[z-\d]/B,alt_extended_class
+Failed: error 150 at offset 5: invalid range in character class
+
+/[abc -- b]+/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [ac]++
+        Ket
+        End
+------------------------------------------------------------------
+    acacbac
+ 0: acac
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a&&a]]]]]]]]]]]]]]]/alt_extended_class
+    a
+ 0: a
+\= Expect no match
+    b
+No match
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[z]&&a]]]]]]]]]]]]]]]/alt_extended_class
+Failed: error 207 at offset 115: extended character class nesting is too deep
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a&&a[z]]]]]]]]]]]]]]]]/alt_extended_class
+Failed: error 207 at offset 118: extended character class nesting is too deep
+
+/[z&/alt_extended_class
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/[[^]~~[^]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        []
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    a
+No match
+
+/[^[[^]~~[^]]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+
+# --------------
+
+# EXTENDED CHARACTER CLASSES (Perl)
+
+# allow-empty-class does nothing inside (?[...])
+/(?[ []] ])/B,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [\]]
+        Ket
+        End
+------------------------------------------------------------------
+    ]
+ 0: ]
+
+# bad-escape-is-literal does nothing inside (?[...])
+/[ \j ]/
+Failed: error 103 at offset 3: unrecognized character follows \
+
+/[ /\
+Failed: error 101 at offset 3: \ at end of pattern
+
+/(?[ \j ])/
+Failed: error 103 at offset 5: unrecognized character follows \
+
+/(?[ /\
+Failed: error 101 at offset 5: \ at end of pattern
+
+/[ \j ]/bad_escape_is_literal
+    j
+ 0: j
+\= Expect no match
+    k
+No match
+
+/[ /\bad_escape_is_literal
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/(?[ \j ])/bad_escape_is_literal
+Failed: error 103 at offset 5: unrecognized character follows \
+
+/(?[ /\bad_escape_is_literal
+Failed: error 101 at offset 5: \ at end of pattern
+
+/(?[ [\j] ])/bad_escape_is_literal
+Failed: error 103 at offset 6: unrecognized character follows \
+
+/(?[ (\j) ])/bad_escape_is_literal
+Failed: error 103 at offset 6: unrecognized character follows \
+
+# We can't test error cases in testinput1
+
+/(?[])/
+Failed: error 214 at offset 4: empty expression in extended character class
+
+/(?[/
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/(?[]/
+Failed: error 214 at offset 4: empty expression in extended character class
+
+/(?[\n/
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/(?[\n]/
+Failed: error 215 at offset 6: terminating ] with no following closing parenthesis in (?[...]
+
+/(?[\n]z)/
+Failed: error 215 at offset 6: terminating ] with no following closing parenthesis in (?[...]
+
+/(?[\n] )/
+Failed: error 215 at offset 6: terminating ] with no following closing parenthesis in (?[...]
+
+/(?[(/
+Failed: error 114 at offset 4: missing closing parenthesis
+
+/(?[( /
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/(?[(\n/
+Failed: error 106 at offset 6: missing terminating ] for character class
+
+/(?[ \n + () ])/
+Failed: error 214 at offset 11: empty expression in extended character class
+
+/(?[1])/
+Failed: error 216 at offset 4: unexpected character in (?[...]) extended character class
+
+/(?[a])/
+Failed: error 216 at offset 4: unexpected character in (?[...]) extended character class
+
+/(?[a-c])/
+Failed: error 216 at offset 4: unexpected character in (?[...]) extended character class
+
+/(?[(])/
+Failed: error 114 at offset 4: missing closing parenthesis
+
+/(?[(\n])/
+Failed: error 114 at offset 6: missing closing parenthesis
+
+/(?[\n)])/
+Failed: error 122 at offset 6: unmatched closing parenthesis
+
+/(?[^\n])/
+Failed: error 209 at offset 4: unexpected operator in extended character class (no preceding operand)
+
+/(?[ \n \t ])/
+Failed: error 213 at offset 9: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \d \t ])/
+Failed: error 213 at offset 9: unexpected expression in extended character class (no preceding operator)
+
+/(?[ [\n] \t ])/
+Failed: error 213 at offset 11: unexpected expression in extended character class (no preceding operator)
+
+/(?[ (\n) \t ])/
+Failed: error 213 at offset 11: unexpected expression in extended character class (no preceding operator)
+
+/(?[ [:alpha:] \t ])/
+Failed: error 213 at offset 16: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n + \t \d ])/
+Failed: error 213 at offset 14: unexpected expression in extended character class (no preceding operator)
+
+/(?[ !\n \t ])/
+Failed: error 213 at offset 10: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n [:alpha:] ])/
+Failed: error 213 at offset 16: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n [\d] ])/
+Failed: error 213 at offset 8: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n (\t) ])/
+Failed: error 213 at offset 8: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n !\t ])/
+Failed: error 213 at offset 8: unexpected expression in extended character class (no preceding operator)
+
+/(?[ \n \t ])/
+Failed: error 213 at offset 9: unexpected expression in extended character class (no preceding operator)
+
+/(?[:graph:])/
+Failed: error 216 at offset 4: unexpected character in (?[...]) extended character class
+
+/(?[\Qn\E])/
+Failed: error 216 at offset 6: unexpected character in (?[...]) extended character class
+
+# maximum depth tests
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n&\n))))))))))))))])/
+    \n
+ 0: \x0a
+\= Expect no match
+    a
+No match
+    b
+No match
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+([\n]&\n))))))))))))))])/
+Failed: error 207 at offset 158: extended character class nesting is too deep
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n&[\n]))))))))))))))])/
+Failed: error 207 at offset 161: extended character class nesting is too deep
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+((\n)&\n))))))))))))))])/
+Failed: error 207 at offset 158: extended character class nesting is too deep
+
+# --------------
+
+/[[:digit:]   -Z]/xx
+Failed: error 150 at offset 14: invalid range in character class
+
+/[\d   -Z]/xx
+Failed: error 150 at offset 7: invalid range in character class
+
+/[[:digit:]\E-H]/
+Failed: error 150 at offset 13: invalid range in character class
+
+/[[:digit:]\Q\E-H]+/
+Failed: error 150 at offset 15: invalid range in character class
+
+/[z-[:space:]]/
+Failed: error 150 at offset 12: invalid range in character class
+
+/[z-\d]/
+Failed: error 150 at offset 5: invalid range in character class
+
+/[[:space:]-z]/
+Failed: error 150 at offset 11: invalid range in character class
+
+/[\d-z]/
+Failed: error 150 at offset 4: invalid range in character class
+
+/[\d-\w]/
+Failed: error 150 at offset 4: invalid range in character class
+
+/[\Q/
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/[\Q/\
+Failed: error 106 at offset 4: missing terminating ] for character class
+
+/[\Q\E/
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/[\Q\n/
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/[\Q\n]/
+Failed: error 106 at offset 6: missing terminating ] for character class
+
+/[\Q\n/\
+Failed: error 106 at offset 6: missing terminating ] for character class
+
+/[\Q\n\]/
+Failed: error 106 at offset 7: missing terminating ] for character class
+
+/[\Q\n\E/
+Failed: error 106 at offset 7: missing terminating ] for character class
+
+/[\Q\n\E]/
+    \\
+ 0: \
+    n
+ 0: n
+\= Expect no match
+    \n
+No match
+    Q
+No match
+
+/[z\Q/
+Failed: error 106 at offset 4: missing terminating ] for character class
+
+/[z\Q/\
+Failed: error 106 at offset 5: missing terminating ] for character class
+
+/[z\Q\E/
+Failed: error 106 at offset 6: missing terminating ] for character class
+
+/[/\
+Failed: error 101 at offset 2: \ at end of pattern
+
+/[\n/
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/[\E/
+Failed: error 106 at offset 3: missing terminating ] for character class
+
+/[\^z]/B
+------------------------------------------------------------------
+        Bra
+        [\^z]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[ \^]/B
+------------------------------------------------------------------
+        Bra
+        [ ^]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[\\z]/B
+------------------------------------------------------------------
+        Bra
+        [\\z]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[0-z]/B
+------------------------------------------------------------------
+        Bra
+        [0-z]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[0\-z]/B
+------------------------------------------------------------------
+        Bra
+        [\-0z]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[]z]/B
+------------------------------------------------------------------
+        Bra
+        [\]z]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[ \]]/B
+------------------------------------------------------------------
+        Bra
+        [ \]]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[ --]/B
+------------------------------------------------------------------
+        Bra
+        [ -\-]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[A-\]]/B
+------------------------------------------------------------------
+        Bra
+        [A-\]]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[A-\\]/B
+------------------------------------------------------------------
+        Bra
+        [A-\\]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[\A]/
+Failed: error 107 at offset 2: escape sequence is invalid in character class
+
+/[\Z]/
+Failed: error 107 at offset 2: escape sequence is invalid in character class
+
+/[\z]/
+Failed: error 107 at offset 2: escape sequence is invalid in character class
+
+/[\G]/
+Failed: error 107 at offset 2: escape sequence is invalid in character class
+
+/[\K]/
+Failed: error 107 at offset 2: escape sequence is invalid in character class
+
+/[\g<1>]/
+    <
+ 0: <
+    g
+ 0: g
+\= Expect no match
+    \\
+No match
+
+/[\k<1>]/
+    <
+ 0: <
+    k
+ 0: k
+\= Expect no match
+    \\
+No match
+
+/[\u{ 1z}]/alt_bsux,extra_alt_bsux
+    u
+ 0: u
+    {
+ 0: {
+    }
+ 0: }
+    \x20
+ 0:  
+    1
+ 0: 1
+\= Expect no match
+    \\
+No match
 
 # End of testinput2
 Error -70: PCRE2_ERROR_BADDATA (unknown error number)

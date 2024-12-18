@@ -419,15 +419,14 @@ for (;;)
     case OP_NCLASS:
 #ifdef SUPPORT_WIDE_CHARS
     case OP_XCLASS:
+    case OP_ECLASS:
     /* The original code caused an unsigned overflow in 64 bit systems,
     so now we use a conditional statement. */
-    if (op == OP_XCLASS)
+    if (op == OP_XCLASS || op == OP_ECLASS)
       cc += GET(cc, 1);
     else
-      cc += PRIV(OP_lengths)[OP_CLASS];
-#else
-    cc += PRIV(OP_lengths)[OP_CLASS];
 #endif
+      cc += PRIV(OP_lengths)[OP_CLASS];
 
     switch (*cc)
       {
@@ -761,6 +760,7 @@ for (;;)
   }
 
 PCRE2_DEBUG_UNREACHABLE(); /* Control should never reach here */
+return -3;                 /* Avoid compiler warnings */
 }
 
 
@@ -937,7 +937,8 @@ Arguments:
 Returns:         nothing
 */
 static void
-study_char_list(PCRE2_SPTR code, uint8_t *start_bitmap)
+study_char_list(PCRE2_SPTR code, uint8_t *start_bitmap,
+  const uint8_t *char_lists_end)
 {
 uint32_t type, list_ind;
 uint32_t char_list_add = XCL_CHAR_LIST_LOW_16_ADD;
@@ -951,8 +952,7 @@ type = (uint32_t)(code[0] << 8) | code[1];
 code += 2;
 
 /* Align characters. */
-next_char = (const uint8_t*)code;
-next_char += (type >> XCL_ALIGNMENT_SHIFT) & XCL_ALIGNMENT_MASK;
+next_char = char_lists_end - (GET(code, 0) << 1);
 type &= XCL_TYPE_MASK;
 list_ind = 0;
 
@@ -1715,6 +1715,13 @@ do
       tcode += 2;
       break;
 
+      /* Set-based ECLASS: treat it the same as a "complex" XCLASS; give up. */
+
+#ifdef SUPPORT_WIDE_CHARS
+      case OP_ECLASS:
+      return SSB_FAIL;
+#endif
+
       /* Extended class: if there are any property checks, or if this is a
       negative XCLASS without a map, give up. If there are no property checks,
       there must be wide characters on the XCLASS list, because otherwise an
@@ -1747,7 +1754,8 @@ do
 
         if (*p >= XCL_LIST)
           {
-          study_char_list(p, re->start_bitmap);
+          study_char_list(p, re->start_bitmap,
+            ((const uint8_t *)re + re->code_start));
           goto HANDLE_CLASSMAP;
           }
 
@@ -1912,8 +1920,7 @@ BOOL ucp = (re->overall_options & PCRE2_UCP) != 0;
 
 /* Find start of compiled code */
 
-code = (PCRE2_UCHAR *)((uint8_t *)re + sizeof(pcre2_real_code)) +
-  re->name_entry_size * re->name_count;
+code = (PCRE2_UCHAR *)((uint8_t *)re + re->code_start);
 
 /* For a pattern that has a first code unit, or a multiline pattern that
 matches only at "line start", there is no point in seeking a list of starting

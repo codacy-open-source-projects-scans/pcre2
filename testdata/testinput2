@@ -3975,6 +3975,12 @@
     no reduction
     Alfred Winifred
 
+/[[:<:]]+red/B
+    little red riding hood
+    red is a colour
+\= Expect no match
+    Alfred
+
 /[a[:<:]] should give error/
 
 /(?=ab\K)/aftertext,allow_lookaround_bsk
@@ -4220,6 +4226,37 @@
     apple lemon blackberry
 
 /abc/
+    123abc123\=replace=XYZ
+    123abc123\=replace=[10]XYZ
+\= Expect error
+    123abc123\=replace=[9]XYZ
+    123abc123\=substitute_overflow_length,replace=[9]XYZ
+    123abc123\=substitute_overflow_length,replace=[6]XYZ
+    123abc123\=substitute_overflow_length,replace=[1]XYZ
+    123abc123\=substitute_overflow_length,replace=[0]XYZ
+
+/abc/
+    123abc123\=replace=XY
+    123abc123\=replace=[9]XY
+    123abc123\=replace=[9]XY,substitute_literal
+\= Expect error
+    123abc123\=replace=[8]XY,substitute_overflow_length
+    123abc123\=replace=[8]XY,substitute_overflow_length,substitute_literal
+    123abc123\=replace=[6]XY,substitute_overflow_length
+    123abc123\=replace=[6]XY,substitute_overflow_length,substitute_literal
+    123abc123\=replace=[5]XY,substitute_overflow_length
+    123abc123\=replace=[5]XY,substitute_overflow_length,substitute_literal
+    123abc123\=replace=[4]XY,substitute_overflow_length
+    123abc123\=replace=[4]XY,substitute_overflow_length,substitute_literal
+    123abc123\=replace=[3]XY,substitute_overflow_length
+    123abc123\=replace=[3]XY,substitute_overflow_length,substitute_literal
+    123abc123\=replace=[2]XY,substitute_overflow_length
+    123abc123\=replace=[2]XY,substitute_overflow_length,substitute_literal
+
+/abc/substitute_literal
+    123abc123\=replace=XYZ
+    123abc123\=replace=[10]XYZ
+\= Expect error
     123abc123\=replace=[9]XYZ
     123abc123\=substitute_overflow_length,replace=[9]XYZ
     123abc123\=substitute_overflow_length,replace=[6]XYZ
@@ -4714,7 +4751,7 @@ B)x/alt_verbnames,mark
 
 /abcd/null_context
     abcd\=null_context
-\= Expect error - not allowed together
+\= Expect not allowed together
     abcd\=null_context,find_limits
     abcd\=allusedtext,startchar
 
@@ -6061,6 +6098,8 @@ a)"xI
 
 /abc/replace=\U$0,substitute_extended,substitute_case_callout=a.U.b.V.
     XabcY
+\= Expect not supported
+    XabcY\=null_context
 
 /a/substitute_extended
     XaY\=replace=\U$0,substitute_case_callout=a.U.
@@ -6363,6 +6402,10 @@ a)"xI
 
 /()(*scs:(1)+a)/
 
+/()(*scs:(1,1,1,1,1,1,1,1,2))/
+
+/()()(*scs:(1,2,1,2,1,2,2,'XYZ'))/
+
 # Tests for iterating scan_substring
 
 /(a)(*scs:(1)b)*c/B
@@ -6574,6 +6617,13 @@ a)"xI
     ab
     ac
 
+/()()()(?<=ab(*scs:(1,2,3))cd)xyz/
+    abcdxyz
+
+/()()()(?<=ab(*ACCEPT)(*scs:(1,2,3))cd|efg)xyz/
+    abxyz
+    efgxyz
+
 # Tests for pcre2_set_optimize()
 
 /abc/I,optimization_none
@@ -6659,5 +6709,614 @@ a)"xI
     abc\=callout_none
 
 /a(?C)b/never_callout
+
+# --------------
+
+# EXTENDED CHARACTER CLASSES (UTS#18)
+
+/[a[]/
+    [
+
+/[a[]/alt_extended_class
+
+/[a[B]/alt_extended_class
+
+/[a[B]]C/B,alt_extended_class
+    aC
+    BC
+\= Expect no match
+    [C
+
+/[[A][B]]/B,alt_extended_class
+    A
+    B
+\= Expect no match
+    [
+    ]
+
+/[[A]||[B]]/B,alt_extended_class
+    A
+    B
+\= Expect no match
+    C
+
+/[[^A][B]]/B,alt_extended_class
+    B
+    C
+\= Expect no match
+    A
+
+/[^[A][B]]/B,alt_extended_class
+    C
+\= Expect no match
+    A
+    B
+
+/[^[A]&&[B]]/B,alt_extended_class
+    A
+    B
+    C
+
+/[[AC]||[BC]]/B,alt_extended_class
+    A
+    B
+    C
+\= Expect no match
+    D
+
+/[[AC]&&[BC]]/B,alt_extended_class
+    C
+\= Expect no match
+    A
+    B
+    D
+
+/[[AC]--[BC]]/B,alt_extended_class
+    A
+\= Expect no match
+    B
+    C
+    D
+
+/[[AC]~~[BC]]/B,alt_extended_class
+    A
+    B
+\= Expect no match
+    C
+    D
+
+/[A[]]]/B,alt_extended_class
+    A
+    ]
+\= Expect no match
+    [
+
+/[A[^]]]/B,alt_extended_class
+    A
+    [
+    C
+\= Expect no match
+    ]
+
+/[A[]]/B,alt_extended_class,allow_empty_class
+    A
+\= Expect no match
+    ]
+    [
+
+/[A[^]]/B,alt_extended_class,allow_empty_class
+    A
+    C
+    [
+    ]
+
+/[A-C--B]/B,alt_extended_class
+    A
+    C
+\= Expect no match
+    B
+
+/[^A-C--B]/B,alt_extended_class
+    B
+\= Expect no match
+    A
+    C
+
+/[[\d\D]--b]/B,alt_extended_class
+    a
+    c
+\= Expect no match
+    b
+
+/[\dAC-E[:space:]&&[^z]]/B,alt_extended_class
+    0
+    A
+    C
+    D
+    E
+    \t
+\= Expect no match
+    B
+    F
+    ;
+
+/[z||[^\dAC-E[:space:]]]/B,alt_extended_class
+    z
+    B
+    F
+    ;
+\= Expect no match
+    0
+    A
+    C
+    D
+    E
+    \t
+
+/[ab||cd]/B,alt_extended_class
+    a
+    c
+\= Expect no match
+    e
+
+/[[a]b||[c]d]/B,alt_extended_class
+    a
+    c
+\= Expect no match
+    e
+
+/[a[b]||c[d]]/B,alt_extended_class
+    a
+    c
+\= Expect no match
+    e
+
+/[-&&-]/B,alt_extended_class
+    -
+\= Expect no match
+    a
+
+/[a-&&-a]/B,alt_extended_class
+    -
+    a
+\= Expect no match
+    b
+
+/[-a&&a-]/B,alt_extended_class
+    -
+    a
+\= Expect no match
+    b
+
+/[[a]-&&-[a]]/B,alt_extended_class
+    -
+    a
+\= Expect no match
+    b
+
+/[-[a]&&[a]-]/B,alt_extended_class
+    -
+    a
+\= Expect no match
+    b
+
+/(?xx:[  ^  a[  ^  b]  ])/B,alt_extended_class
+    b
+\= Expect no match
+    A
+    a
+    c
+
+/[  ^  a[  ^  b]  ]/B,alt_extended_class
+    \x20
+    ^
+    a
+    b
+\= Expect no match
+    c
+
+/[a-c--b]+/B,alt_extended_class
+    ac
+    a
+\= Expect no match
+    b
+
+/[a-c--b]{2,3}/B,alt_extended_class
+    ac
+    cac
+\= Expect no match
+    a
+    bb
+
+/x[a-c--b]+y/B,alt_extended_class
+    xacy
+    xaay
+    xay
+\= Expect no match
+    zacy
+    xacz
+    xy
+    xby
+
+/[A--B--C--D]/B,alt_extended_class
+    A
+\= Expect no match
+    B
+
+/[A--A--A]/B,alt_extended_class
+\= Expect no match
+    A
+    B
+
+/[[A--A]--A]/B,alt_extended_class
+\= Expect no match
+    A
+    B
+
+/[A--[A--A]]/B,alt_extended_class
+    A
+\= Expect no match
+    B
+
+/[A--^B]/B,alt_extended_class
+    A
+\= Expect no match
+    B
+    ^
+    z
+
+/([a-z--n])\1/B,alt_extended_class
+    aa
+    zz
+\= Expect no match
+    az
+    nn
+
+/(x[a-z--n]y)\1/B,alt_extended_class
+    xayxay
+    xzyxzy
+\= Expect no match
+    xnyxny
+
+/(?:_\1|([a-z--n])){2}/B,alt_extended_class
+    a_a
+    z_z
+\= Expect no match
+    a_z
+    n_n
+
+/(?:_\1|([a-z--n]))+/B,alt_extended_class
+    a_a
+    z_z
+    a_partial
+\= Expect no match
+    n_n
+
+/[\d-[z]]/B,alt_extended_class
+    1
+    -
+    z
+
+/[\d-||z]/B,alt_extended_class
+    1
+    -
+    z
+
+/[z[\d-]]/B,alt_extended_class
+    1
+    -
+    z
+
+/[1-[z]]/B,alt_extended_class
+    1
+    -
+    z
+
+/[1-||z]/B,alt_extended_class
+    1
+    -
+    z
+
+/[z[1-]]/B,alt_extended_class
+    1
+    -
+    z
+
+/[a--/alt_extended_class
+
+/[a--a/alt_extended_class
+
+/[a--[a/alt_extended_class
+
+/[a--[a]/alt_extended_class
+
+/[a--[a]--/alt_extended_class
+
+/[a--]/alt_extended_class
+
+/[--a]/alt_extended_class
+
+/[^--a]/alt_extended_class
+
+/[--]/alt_extended_class
+
+/[a---b]/alt_extended_class
+
+/[a----b]/alt_extended_class
+
+/[a&&&b]/alt_extended_class
+
+/[a|||b]/alt_extended_class
+
+/[a~~~b]/alt_extended_class
+
+/[a~~~~b]/alt_extended_class
+
+/[a~~/alt_extended_class
+
+/[a~~~/alt_extended_class
+
+/[a~~~~/alt_extended_class
+
+/[a||b&&c]/alt_extended_class
+
+/[a||b~~c]/alt_extended_class
+
+/[a~~b&&c]/alt_extended_class
+
+/[a--b~~c]/alt_extended_class
+
+/[a--b&&c]/alt_extended_class
+
+/[a||b--c]/alt_extended_class
+
+/[a||[b--c]]/alt_extended_class
+    a
+    b
+\= Expect no match
+    c
+
+/[\d-z]/B,alt_extended_class
+
+/[z-\d]/B,alt_extended_class
+
+/[abc -- b]+/B,alt_extended_class
+    acacbac
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a&&a]]]]]]]]]]]]]]]/alt_extended_class
+    a
+\= Expect no match
+    b
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[z]&&a]]]]]]]]]]]]]]]/alt_extended_class
+
+/[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a[b]&&a[a&&a[z]]]]]]]]]]]]]]]]/alt_extended_class
+
+/[z&/alt_extended_class
+
+/[[^]~~[^]]/B,alt_extended_class,allow_empty_class
+\= Expect no match
+    a
+
+/[^[[^]~~[^]]]/B,alt_extended_class,allow_empty_class
+    a
+
+# --------------
+
+# EXTENDED CHARACTER CLASSES (Perl)
+
+# allow-empty-class does nothing inside (?[...])
+/(?[ []] ])/B,allow_empty_class
+    ]
+
+# bad-escape-is-literal does nothing inside (?[...])
+/[ \j ]/
+
+/[ /\
+
+/(?[ \j ])/
+
+/(?[ /\
+
+/[ \j ]/bad_escape_is_literal
+    j
+\= Expect no match
+    k
+
+/[ /\bad_escape_is_literal
+
+/(?[ \j ])/bad_escape_is_literal
+
+/(?[ /\bad_escape_is_literal
+
+/(?[ [\j] ])/bad_escape_is_literal
+
+/(?[ (\j) ])/bad_escape_is_literal
+
+# We can't test error cases in testinput1
+
+/(?[])/
+
+/(?[/
+
+/(?[]/
+
+/(?[\n/
+
+/(?[\n]/
+
+/(?[\n]z)/
+
+/(?[\n] )/
+
+/(?[(/
+
+/(?[( /
+
+/(?[(\n/
+
+/(?[ \n + () ])/
+
+/(?[1])/
+
+/(?[a])/
+
+/(?[a-c])/
+
+/(?[(])/
+
+/(?[(\n])/
+
+/(?[\n)])/
+
+/(?[^\n])/
+
+/(?[ \n \t ])/
+
+/(?[ \d \t ])/
+
+/(?[ [\n] \t ])/
+
+/(?[ (\n) \t ])/
+
+/(?[ [:alpha:] \t ])/
+
+/(?[ \n + \t \d ])/
+
+/(?[ !\n \t ])/
+
+/(?[ \n [:alpha:] ])/
+
+/(?[ \n [\d] ])/
+
+/(?[ \n (\t) ])/
+
+/(?[ \n !\t ])/
+
+/(?[ \n \t ])/
+
+/(?[:graph:])/
+
+/(?[\Qn\E])/
+
+# maximum depth tests
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n&\n))))))))))))))])/
+    \n
+\= Expect no match
+    a
+    b
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+([\n]&\n))))))))))))))])/
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n&[\n]))))))))))))))])/
+
+/(?[\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+(\n+[a]&\n+((\n)&\n))))))))))))))])/
+
+# --------------
+
+/[[:digit:]   -Z]/xx
+
+/[\d   -Z]/xx
+
+/[[:digit:]\E-H]/
+
+/[[:digit:]\Q\E-H]+/
+
+/[z-[:space:]]/
+
+/[z-\d]/
+
+/[[:space:]-z]/
+
+/[\d-z]/
+
+/[\d-\w]/
+
+/[\Q/
+
+/[\Q/\
+
+/[\Q\E/
+
+/[\Q\n/
+
+/[\Q\n]/
+
+/[\Q\n/\
+
+/[\Q\n\]/
+
+/[\Q\n\E/
+
+/[\Q\n\E]/
+    \\
+    n
+\= Expect no match
+    \n
+    Q
+
+/[z\Q/
+
+/[z\Q/\
+
+/[z\Q\E/
+
+/[/\
+
+/[\n/
+
+/[\E/
+
+/[\^z]/B
+
+/[ \^]/B
+
+/[\\z]/B
+
+/[0-z]/B
+
+/[0\-z]/B
+
+/[]z]/B
+
+/[ \]]/B
+
+/[ --]/B
+
+/[A-\]]/B
+
+/[A-\\]/B
+
+/[\A]/
+
+/[\Z]/
+
+/[\z]/
+
+/[\G]/
+
+/[\K]/
+
+/[\g<1>]/
+    <
+    g
+\= Expect no match
+    \\
+
+/[\k<1>]/
+    <
+    k
+\= Expect no match
+    \\
+
+/[\u{ 1z}]/alt_bsux,extra_alt_bsux
+    u
+    {
+    }
+    \x20
+    1
+\= Expect no match
+    \\
 
 # End of testinput2

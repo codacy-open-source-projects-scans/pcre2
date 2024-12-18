@@ -199,6 +199,11 @@ META_RANGE_ESCAPED    hyphen in class range with at least one escape
 META_RANGE_LITERAL    hyphen in class range defined literally
 META_SKIP             (*SKIP) - no argument (see below for with argument)
 META_THEN             (*THEN) - no argument (see below for with argument)
+META_ECLASS_AND       && (or &) in an extended character class
+META_ECLASS_OR        || (or |, +) in an extended character class
+META_ECLASS_SUB       -- (or -) in an extended character class
+META_ECLASS_XOR       ~~ (or ^) in an extended character class
+META_ECLASS_NOT       ! in an extended character class
 
 The two RANGE values occur only in character classes. They are positioned
 between two literals that define the start and end of the range. In an EBCDIC
@@ -628,6 +633,42 @@ When XCL_NOT is set, the bit map, if present, contains bits for characters that
 are allowed (exactly as for OP_NCLASS), but the list of items that follow it
 specifies characters and properties that are not allowed.
 
+The meaning of the bitmap indicated by XCL_MAP is that, if one is present, then
+it fully describes which code points < 256 match the class (without needing to
+invert the check according to XCL_NOT); the other items in the OP_XCLASS need
+not be consulted. However, if a bitmap is not present, then code points < 256
+may still match, so the other items in the OP_XCLASS must be consulted.
+
+For classes containing logical expressions, such as "[\p{Greek} && \p{Lu}]" for
+"uppercase Greek letters", OP_ECLASS is used. The expression is encoded as a a
+stack-based series of operands and operators, in Reverse Polish Notation. Like
+an OP_XCLASS, the OP_ECLASS is first followed by a LINK_SIZE value containing
+the total length of the opcode and its data. That is followed by a code unit
+containing flags: currently just ECL_MAP indicating that a bit map is present.
+There follows the bit map, if ECL_MAP is set. Finally, there is a sequence of
+items that are either an operand or operator. Each item starts with a single
+code unit containing its type:
+
+  ECL_AND       AND; no additional data
+  ECL_OR        OR; no additional data
+  ECL_XOR       XOR; no additional data
+  ECL_NOT       NOT; no additional data
+  ECL_XCLASS    The additional data which follows ECL_XCLASS is the same as for
+                an OP_XCLASS, except that this data is preceded by ECL_XCLASS
+                rather than OP_XCLASS.
+                Because the OP_ECLASS has its own bitmap (if required), an
+                ECL_XCLASS should not contain a bitmap.
+
+Additionally, there are two intermediate values used during compilation, but
+these are folded away during generation of the opcode, and so never appear
+inside an OP_ECLASS at match time. They are:
+
+  ECL_ANY       match all characters; no additional data
+  ECL_NONE      match no characters; no additional data
+
+The meaning of the bitmap indicated by ECL_MAP is the same as XCL_MAP.
+If the bitmap is present, all codepoints < 256 are checked against the bitmap.
+
 
 Back references
 ---------------
@@ -763,9 +804,15 @@ In ASCII or UTF-32 mode, the character counts in OP_REVERSE and OP_VREVERSE are
 also the number of code units, but in UTF-8/16 mode each character may occupy
 more than one code unit.
 
-The "scan substring" assertion compiles as OP_ASSERT_SCS. What follows takes
-the same form as a conditional subpattern with a back reference condition (see
-next section).
+The "scan substring" assertion compiles as OP_ASSERT_SCS. This opcode is
+followed by a list of arguments. Each argument is either an OP_CREF or
+OP_DNCREF byte code sequence. The details of these sequences are described
+in the next section.
+
+For example (*scs:(1,'NAME')...PATTERN...) is translated to:
+[OP_ASSERT_SCS] [OP_CREF] [OP_CREF] ...PATTERN... [OP_KET]
+
+If 'NAME' is a duplicated name, the second [OP_CREF] is [OP_DNCREF] instead.
 
 
 Conditional subpatterns

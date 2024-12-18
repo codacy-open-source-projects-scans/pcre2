@@ -324,7 +324,7 @@ Subject length lower bound = 1
 /[^\xFF]/IB
 ------------------------------------------------------------------
         Bra
-        [^\x{ff}]
+        [^\x{ff}] (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -358,7 +358,7 @@ Subject length lower bound = 1
 /[^\x{100}]abc(xyz(?1))/IB,utf
 ------------------------------------------------------------------
         Bra
-        [^\x{100}]
+        [^\x{100}] (not)
         abc
         CBra 1
         xyz
@@ -820,7 +820,7 @@ No match
 No match
 
 /[[:a\x{100}b:]]/utf
-Failed: error 130 at offset 3: unknown POSIX class name
+Failed: error 130 at offset 14: unknown POSIX class name
 
 /a[^]b/utf,allow_empty_class,match_unset_backref
     a\x{1234}b
@@ -1673,11 +1673,11 @@ Partial match: \x{0d}\x{0d}
 /[^\x{100}][^\x{1234}][^\x{ffff}][^\x{10000}][^\x{10ffff}]/B,utf
 ------------------------------------------------------------------
         Bra
-        [^\x{100}]
-        [^\x{1234}]
-        [^\x{ffff}]
-        [^\x{10000}]
-        [^\x{10ffff}]
+        [^\x{100}] (not)
+        [^\x{1234}] (not)
+        [^\x{ffff}] (not)
+        [^\x{10000}] (not)
+        [^\x{10ffff}] (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -1685,11 +1685,11 @@ Partial match: \x{0d}\x{0d}
 /[^\x{100}][^\x{1234}][^\x{ffff}][^\x{10000}][^\x{10ffff}]/Bi,utf
 ------------------------------------------------------------------
         Bra
-     /i [^\x{100}]
-     /i [^\x{1234}]
-     /i [^\x{ffff}]
-     /i [^\x{10000}]
-     /i [^\x{10ffff}]
+     /i [^\x{100}] (not)
+     /i [^\x{1234}] (not)
+     /i [^\x{ffff}] (not)
+     /i [^\x{10000}] (not)
+     /i [^\x{10ffff}] (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -1697,15 +1697,15 @@ Partial match: \x{0d}\x{0d}
 /[^\x{100}]*[^\x{10000}]+[^\x{10ffff}]??[^\x{8000}]{4,}[^\x{7fff}]{2,9}?[^\x{fffff}]{5,6}+/B,utf
 ------------------------------------------------------------------
         Bra
-        [^\x{100}]*
-        [^\x{10000}]+
-        [^\x{10ffff}]??
-        [^\x{8000}]{4}
-        [^\x{8000}]*
-        [^\x{7fff}]{2}
-        [^\x{7fff}]{0,7}?
-        [^\x{fffff}]{5}
-        [^\x{fffff}]?+
+        [^\x{100}]* (not)
+        [^\x{10000}]+ (not)
+        [^\x{10ffff}]?? (not)
+        [^\x{8000}]{4} (not)
+        [^\x{8000}]* (not)
+        [^\x{7fff}]{2} (not)
+        [^\x{7fff}]{0,7}? (not)
+        [^\x{fffff}]{5} (not)
+        [^\x{fffff}]?+ (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -1713,15 +1713,15 @@ Partial match: \x{0d}\x{0d}
 /[^\x{100}]*[^\x{10000}]+[^\x{10ffff}]??[^\x{8000}]{4,}[^\x{7fff}]{2,9}?[^\x{fffff}]{5,6}+/Bi,utf
 ------------------------------------------------------------------
         Bra
-     /i [^\x{100}]*
-     /i [^\x{10000}]+
-     /i [^\x{10ffff}]??
-     /i [^\x{8000}]{4}
-     /i [^\x{8000}]*
-     /i [^\x{7fff}]{2}
-     /i [^\x{7fff}]{0,7}?
-     /i [^\x{fffff}]{5}
-     /i [^\x{fffff}]?+
+     /i [^\x{100}]* (not)
+     /i [^\x{10000}]+ (not)
+     /i [^\x{10ffff}]?? (not)
+     /i [^\x{8000}]{4} (not)
+     /i [^\x{8000}]* (not)
+     /i [^\x{7fff}]{2} (not)
+     /i [^\x{7fff}]{0,7}? (not)
+     /i [^\x{fffff}]{5} (not)
+     /i [^\x{fffff}]?+ (not)
         Ket
         End
 ------------------------------------------------------------------
@@ -1905,6 +1905,40 @@ No match
 /[\P{Any}\E]/B
 ------------------------------------------------------------------
         Bra
+        []
+        Ket
+        End
+------------------------------------------------------------------
+
+/\p{Any}#\P{Any}![\p{Any}]:[\P{Any}]@[\p{Any}a-z]%[\P{Any}c]/B,utf
+------------------------------------------------------------------
+        Bra
+        AllAny
+        #
+        []
+        !
+        AllAny
+        :
+        []
+        @
+        AllAny
+        %
+        [c]
+        Ket
+        End
+------------------------------------------------------------------
+
+/[\P{Any}\P{Any}\P{Any}]![\p{Any}\p{Any}\p{Any}]:[^\P{Any}\P{Any}]@[^\p{Any}\p{Any}]%[^\p{Any}\P{Any}]/B,utf
+------------------------------------------------------------------
+        Bra
+        []
+        !
+        AllAny
+        :
+        AllAny
+        @
+        []
+        %
         []
         Ket
         End
@@ -3126,7 +3160,7 @@ No match
 /[^a]*\x{3c2}/Bi,utf
 ------------------------------------------------------------------
         Bra
-     /i [^a]*
+     /i [^a]* (not)
         clist 03a3 03c2 03c3
         Ket
         End
@@ -3306,7 +3340,7 @@ No match
         AllAny+
         AllAny
         AllAny+
-        notprop Any
+        []
         AllAny+
         prop Lc
         AllAny+
@@ -4070,7 +4104,7 @@ MK: a\x{12345}b\x{09}(d)c
 /[[:^ascii:]]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [\x80-\xff] (neg)
+        [^\x00-\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -4078,7 +4112,7 @@ MK: a\x{12345}b\x{09}(d)c
 /[[:^ascii:]\w]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [0-9A-Z_a-z\x80-\xff] (neg)
+        [^\x00-/:-@[-^`{-\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -4086,7 +4120,7 @@ MK: a\x{12345}b\x{09}(d)c
 /[\w[:^ascii:]]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [0-9A-Z_a-z\x80-\xff] (neg)
+        [^\x00-/:-@[-^`{-\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -4111,7 +4145,7 @@ No match
 /[[:^ascii:]a]/utf,ucp,bincode
 ------------------------------------------------------------------
         Bra
-        [a\x80-\xff] (neg)
+        [^\x00-`b-\x7f]
         Ket
         End
 ------------------------------------------------------------------
@@ -6096,7 +6130,7 @@ Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement
 /[\x80-\x{4000}\x90\x{400}-\x{f000}\xa0\x{4000}-\x{10ffff}]++/B,utf
 ------------------------------------------------------------------
         Bra
-        [\x80-\xff] (neg)++
+        [^\x00-\x7f]++
         Ket
         End
 ------------------------------------------------------------------
@@ -6106,7 +6140,7 @@ Failed: error -57 at offset 4 in replacement: bad escape sequence in replacement
 /[\x80-\x{4000}\x90\x{400}-\x{f000}\xa0\pN\x{4000}-\x{10ffff}]++/B,utf
 ------------------------------------------------------------------
         Bra
-        [0-9\x80-\xff] (neg)++
+        [^\x00-/:-\x7f]++
         Ket
         End
 ------------------------------------------------------------------
@@ -6148,7 +6182,7 @@ No match
 /[\pN\xf0-\x{10ffff}]{5,8}/B,utf
 ------------------------------------------------------------------
         Bra
-        [0-9\xb2\xb3\xb9\xbc-\xbe\xf0-\xff] (neg){5,8}+
+        [^\x00-/:-\xb1\xb4-\xb8\xba\xbb\xbf-\xef]{5,8}+
         Ket
         End
 ------------------------------------------------------------------
@@ -6229,5 +6263,1879 @@ Failed: error 115 at offset 52: reference to non-existent subpattern
 /[^[:xdigit:]\x{400}-\x{410}\x{500}\x{600}-\x{610}\x{700}\x{800}-\x{810}]+/utf,ucp
   \x{800}<\x{3ff}\x{411}\x{4ff}\x{501}\x{5ff}\x{611}\x{6ff}\x{701}\x{7ff}\x{811}>\x{810}
  0: <\x{3ff}\x{411}\x{4ff}\x{501}\x{5ff}\x{611}\x{6ff}\x{701}\x{7ff}\x{811}>
+
+# --------------
+
+# EXTENDED CHARACTER CLASSES (UTS#18)
+
+/[\p{Lu}[\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    C
+ 0: C
+\= Expect no match
+    [
+No match
+    a
+No match
+
+/[[\pL][\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{L}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    a
+ 0: a
+\= Expect no match
+    [
+No match
+    ]
+No match
+
+/[[\p{Lu}]||[\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    1
+ 0: 1
+\= Expect no match
+    a
+No match
+
+/[[^\pL][\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [^\p{L}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    .
+ 0: .
+\= Expect no match
+    A
+No match
+
+/[^[\pL][\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [^\p{L}]
+          xclass: [^\p{Nd}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    .
+ 0: .
+\= Expect no match
+    A
+No match
+    0
+No match
+
+/[^[\pL]&&[\p{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [^\p{L}]
+          xclass: [^\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    0
+ 0: 0
+
+/[[\p{Lu}\p{Ll}]||[\p{Nd}\p{Ll}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}\p{Ll}]
+          xclass: [\p{Nd}\p{Ll}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    1
+ 0: 1
+    c
+ 0: c
+\= Expect no match
+    _
+No match
+
+/[[\p{Lu}\p{Ll}]&&[\p{Nd}\p{Ll}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}\p{Ll}]
+          xclass: [\p{Nd}\p{Ll}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    c
+ 0: c
+\= Expect no match
+    A
+No match
+    1
+No match
+    _
+No match
+
+/[[\p{Lu}\p{Ll}]--[\p{Nd}\p{Ll}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}\p{Ll}]
+          xclass: [^\p{Nd}\p{Ll}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    1
+No match
+    c
+No match
+    _
+No match
+
+/[[\p{Lu}\p{Ll}]~~[\p{Nd}\p{Ll}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}\p{Ll}]
+          xclass: [\p{Nd}\p{Ll}]
+          XOR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    1
+ 0: 1
+\= Expect no match
+    c
+No match
+    _
+No match
+
+/[\pL[]]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [A-Z\]a-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    ]
+ 0: ]
+\= Expect no match
+    [
+No match
+
+/[\pL[^]]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^\]]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    [
+ 0: [
+    0
+ 0: 0
+\= Expect no match
+    ]
+No match
+
+/[\pL[]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    ]
+No match
+    [
+No match
+
+/[\pL[^]]/B,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    0
+ 0: 0
+    [
+ 0: [
+    ]
+ 0: ]
+
+/[\dAC-E[:space:]\p{Lu}&&[^z]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\x09-\x0d 0-9A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    A
+ 0: A
+    C
+ 0: C
+    D
+ 0: D
+    E
+ 0: E
+    \t
+ 0: \x09
+\= Expect no match
+    a
+No match
+    ;
+No match
+
+/[z||[^\dAC-E[:space:]\p{Lu}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^\x09-\x0d 0-9A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    z
+ 0: z
+    ;
+ 0: ;
+\= Expect no match
+    0
+No match
+    A
+No match
+    C
+No match
+    D
+No match
+    E
+No match
+    B
+No match
+    F
+No match
+    \t
+No match
+
+/[\p{Lu}\p{Nd}||cd]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [0-9A-Zcd\xc0-\xd6\xd8-\xde\p{Lu}\p{Nd}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    0
+ 0: 0
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[[\p{Lu}]\p{Nd}||[c]d]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [0-9A-Zcd\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    0
+ 0: 0
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[\p{Lu}[\p{Nd}]||c[d]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [0-9A-Zcd\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    0
+ 0: 0
+    c
+ 0: c
+\= Expect no match
+    e
+No match
+
+/[\p{Lu}-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    a
+No match
+
+/[-\p{Lu}]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    a
+No match
+
+/[\pL-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-A-Za-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    0
+No match
+
+/[-\pL]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\-A-Za-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    0
+No match
+
+/[\p{Lu}-]/B
+------------------------------------------------------------------
+        Bra
+        [\-A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    a
+No match
+
+/[-\p{Lu}]/B
+------------------------------------------------------------------
+        Bra
+        [\-A-Z\xc0-\xd6\xd8-\xde\p{Lu}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    a
+No match
+
+/[\pL-]/B
+------------------------------------------------------------------
+        Bra
+        [\-A-Za-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    0
+No match
+
+/[-\pL]/B
+------------------------------------------------------------------
+        Bra
+        [\-A-Za-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+    -
+ 0: -
+\= Expect no match
+    0
+No match
+
+/[\p{Lu}-z]/B,alt_extended_class
+Failed: error 150 at offset 8: invalid range in character class
+
+/[z-\p{Lu}]/B,alt_extended_class
+Failed: error 150 at offset 9: invalid range in character class
+
+/[\pL-z]/B,alt_extended_class
+Failed: error 150 at offset 5: invalid range in character class
+
+/[z-\pL]/B,alt_extended_class
+Failed: error 150 at offset 6: invalid range in character class
+
+/[\p{Lu}-&&-\pL]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [\-A-Z\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    A
+ 0: A
+\= Expect no match
+    a
+No match
+
+/[-\p{Lu}&&\pL-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [\-A-Z\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    A
+ 0: A
+\= Expect no match
+    a
+No match
+
+/[[\p{Lu}]-&&-[\pL]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [\-A-Z\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    A
+ 0: A
+\= Expect no match
+    a
+No match
+
+/[-[\p{Lu}]&&[\pL]-]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [\-A-Z\xc0-\xd6\xd8-\xde]
+          xclass: [\p{Lu}]
+          xclass: [\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    -
+ 0: -
+    A
+ 0: A
+\= Expect no match
+    a
+No match
+
+/(?xx:[  ^  5[  ^  \p{Nd}]  ])/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        [0-46-9\p{Nd}]
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+    4
+ 0: 4
+\= Expect no match
+    a
+No match
+    ;
+No match
+    5
+No match
+
+/(?xx:[  ^  \p{Nd}[  ^  5]  ])/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        []
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    a
+No match
+    ;
+No match
+    4
+No match
+    5
+No match
+
+/(?xx:[  ^  \p{Nd}[  ^  \p{Nd}]  ])/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        eclass[
+          no bitmap
+          xclass: [^\p{Nd}]
+          xclass: [\p{Nd}]
+          AND
+        ]
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    a
+No match
+    ;
+No match
+    4
+No match
+    5
+No match
+
+/[  ^  \p{Ll}[  ^  \p{Nd}]  ]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [ 0-9^a-z\xb5\xdf-\xf6\xf8-\xff]
+          xclass: [\p{Ll}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    \x20
+ 0:  
+    ^
+ 0: ^
+    a
+ 0: a
+    0
+ 0: 0
+\= Expect no match
+    A
+No match
+    ;
+No match
+
+/[a-c--\p{Nd}]+/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [a-c]++
+        Ket
+        End
+------------------------------------------------------------------
+    ac
+ 0: ac
+    a
+ 0: a
+\= Expect no match
+    0
+No match
+
+/[a-c--\p{Nd}]{2,3}/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [a-c]{2,3}+
+        Ket
+        End
+------------------------------------------------------------------
+    ac
+ 0: ac
+    cac
+ 0: cac
+\= Expect no match
+    a
+No match
+    00
+No match
+
+/x[a-c--\p{Nd}]+y/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        x
+        [a-c]++
+        y
+        Ket
+        End
+------------------------------------------------------------------
+    xacy
+ 0: xacy
+    xaay
+ 0: xaay
+    xay
+ 0: xay
+\= Expect no match
+    zacy
+No match
+    xacz
+No match
+    xy
+No match
+    x0y
+No match
+
+/[\pL--\pL--\pL]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{L}]
+          xclass: [^\p{L}]
+          AND
+          xclass: [^\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    A
+No match
+    1
+No match
+
+/[[\pL--\pL]--\pL]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{L}]
+          xclass: [^\p{L}]
+          AND
+          xclass: [^\p{L}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    A
+No match
+    1
+No match
+
+/[\pL--[\pL--\pL]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{L}]
+          xclass: [^\p{L}]
+          xclass: [\p{L}]
+          OR
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    1
+No match
+
+/[\pL--^\p{Nd}]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [A-Za-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\xff]
+          xclass: [\p{L}]
+          xclass: [^\p{Nd}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    A
+ 0: A
+\= Expect no match
+    1
+No match
+    ^
+No match
+
+/([a-z--[\pL&&n]])\1/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        CBra 1
+        [a-mo-z]
+        Ket
+        \1
+        Ket
+        End
+------------------------------------------------------------------
+    aa
+ 0: aa
+ 1: a
+    zz
+ 0: zz
+ 1: z
+\= Expect no match
+    az
+No match
+    nn
+No match
+
+/(x[a-z--[\pL&&n]]y)\1/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        CBra 1
+        x
+        [a-mo-z]
+        y
+        Ket
+        \1
+        Ket
+        End
+------------------------------------------------------------------
+    xayxay
+ 0: xayxay
+ 1: xay
+    xzyxzy
+ 0: xzyxzy
+ 1: xzy
+\= Expect no match
+    xnyxny
+No match
+
+/(?:_\1|([a-z--[\pL&&n]])){2}/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        Ket
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        Ket
+        Ket
+        End
+------------------------------------------------------------------
+    a_a
+ 0: a_a
+ 1: a
+    z_z
+ 0: z_z
+ 1: z
+\= Expect no match
+    a_z
+No match
+    n_n
+No match
+
+/(?:_\1|([a-z--[\pL&&n]]))+/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        Bra
+        _
+        \1
+        Alt
+        CBra 1
+        [a-mo-z]
+        Ket
+        KetRmax
+        Ket
+        End
+------------------------------------------------------------------
+    a_a
+ 0: a_a
+ 1: a
+    z_z
+ 0: z_z
+ 1: z
+    a_partial
+ 0: a
+ 1: a
+\= Expect no match
+    n_n
+No match
+
+/[\p{Nd}||[\pL--\p{Lu}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Nd}]
+          xclass: [\p{L}]
+          xclass: [^\p{Lu}]
+          AND
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    0
+ 0: 0
+\= Expect no match
+    C
+No match
+
+/[\P{Nd}||2]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\x00-/2:-\xff\P{Nd}]
+        Ket
+        End
+------------------------------------------------------------------
+    _
+ 0: _
+    Z
+ 0: Z
+    2
+ 0: 2
+\= Expect no match
+    1
+No match
+    3
+No match
+
+/[^[\P{Nd}]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [^\P{Nd}]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+    2
+ 0: 2
+\= Expect no match
+    _
+No match
+    z
+No match
+
+# caseless tests
+
+/[\p{Lu}~~\p{Ll}]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Lu}]
+          xclass: [\p{Ll}]
+          XOR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    A
+ 0: A
+\= Expect no match
+    _
+No match
+    1
+No match
+
+/[[\p{Lu}1]~~\p{Ll}]/iB,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [1]
+          xclass: [\p{Lc}]
+          xclass: [\p{Lc}]
+          XOR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+\= Expect no match
+    a
+No match
+    A
+No match
+    _
+No match
+
+/[[\p{Lu}1]&&[\p{Ll}1]]/B,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [1]
+          xclass: [\p{Lu}]
+          xclass: [\p{Ll}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    1
+ 0: 1
+\= Expect no match
+    a
+No match
+    A
+No match
+    _
+No match
+    2
+No match
+
+/[[\p{Lu}1]&&[\p{Ll}1]]/iB,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [1A-Za-z\xb5\xc0-\xd6\xd8-\xf6\xf8-\xff]
+          xclass: [\p{Lc}]
+          xclass: [\p{Lc}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    a
+ 0: a
+    A
+ 0: A
+    1
+ 0: 1
+\= Expect no match
+    _
+No match
+    2
+No match
+    \
+No match
+
+/[\p{Thai}&&\p{Nd}]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+\= Expect no match
+    0
+No match
+    a
+No match
+    \x{0e01}
+No match
+
+/[\p{Thai}||\p{Nd}]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          OR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e01}
+ 0: \x{e01}
+    0
+ 0: 0
+\= Expect no match
+    a
+No match
+
+/[\p{Thai}~~\p{Nd}]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          XOR
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e01}
+ 0: \x{e01}
+    0
+ 0: 0
+\= Expect no match
+    \x{0e51}
+No match
+    a
+No match
+
+/[[\p{Thai}&&\p{Nd}]~~[^a]]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        eclass[
+          bitmap: [^a]
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+          NOT
+        ]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e01}
+ 0: \x{e01}
+    b
+ 0: b
+    0
+ 0: 0
+\= Expect no match
+    a
+No match
+    \x{0e51}
+No match
+
+/^[\p{Thai}&&\p{Nd}]?$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]?
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \
+ 0: 
+\= Expect no match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]??$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]??
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \
+ 0: 
+\= Expect no match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]?+$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]?+
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \
+ 0: 
+\= Expect no match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{3}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{3,3}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{3,}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{3,}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{3,}?$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{3,}?
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{3,}+$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{3,}+
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{,3}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{0,3}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \
+ 0: 
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{,3}?$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{0,3}?
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \
+ 0: 
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]{,3}+$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]{0,3}+
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \
+ 0: 
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}\x{0e51}\x{0e51}\x{0e51}
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]+\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]+
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]+?\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]+?
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]++\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]++
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    \x{0e51}
+No match
+    \x{0e51}\x{0e51}
+No match
+    \x{0e51}\x{0e51}\x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]*\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]*
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]*?\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]*?
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+    \x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}
+    \x{0e51}\x{0e51}\x{0e51}
+ 0: \x{e51}\x{e51}\x{e51}
+\= Expect no match
+    \
+No match
+    a
+No match
+
+/^[\p{Thai}&&\p{Nd}]*+\x{0e51}$/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        ^
+        eclass[
+          no bitmap
+          xclass: [\p{Thai}]
+          xclass: [\p{Nd}]
+          AND
+        ]*+
+        \x{e51}
+        $
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    \x{0e51}
+No match
+    \x{0e51}\x{0e51}
+No match
+    \x{0e51}\x{0e51}\x{0e51}
+No match
+    \
+No match
+    a
+No match
+
+/[^[^\p{Thai}]]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\p{Thai}]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e51}
+ 0: \x{e51}
+\= Expect no match
+    a
+No match
+
+/[^[^\p{L}]]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0e01}
+ 0: \x{e01}
+    a
+ 0: a
+\= Expect no match
+    0
+No match
+
+/[\pL&&[^\x00-\xFF]]/B,utf,alt_extended_class
+------------------------------------------------------------------
+        Bra
+        [\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{21e}
+ 0: \x{21e}
+\= Expect no match
+    a
+No match
+
+/[\pL&&\x{100}-\x{1000}]{3,6}+/utf,alt_extended_class
+    \x{145}\x{18b}A\x{145}\x{18b}\x{1C2}\x{21a}\x{257}\x{2ae}\x{0145}\x{18b}
+ 0: \x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}
+    \x{145}A\x{145}\x{18b}\x{1C2}B
+ 0: \x{145}\x{18b}\x{1c2}
+
+/[\pL&&\x{100}-\x{1000}]{3,6}\x{2A3}/utf,alt_extended_class
+    \x{145}\x{18b}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{2a3}
+    \x{145}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{2a3}
+    \x{2a3}A\x{145}\x{18b}\x{1c2}\x{2a3}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{2a3}\x{2a3}
+    \x{0145}\x{18b}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{145}\x{2a3}
+ 0: \x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{145}\x{2a3}
+
+/[\pL&&\x{100}-\x{1000}]{3,6}?\x{2A3}/utf,alt_extended_class
+    \x{145}\x{18b}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{2a3}
+    \x{145}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{2a3}
+    \x{2a3}A\x{145}\x{18b}\x{1c2}\x{2a3}\x{2a3}
+ 0: \x{145}\x{18b}\x{1c2}\x{2a3}
+    \x{0145}\x{18b}\x{2a3}A\x{145}\x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{145}\x{2a3}
+ 0: \x{18b}\x{1c2}\x{21a}\x{257}\x{2ae}\x{145}\x{2a3}
+
+/[\P{scx=Beng}\P{scx=Deva}\pM--[\x{2000}-\x{3000}]]+/utf,alt_extended_class
+    \x{964}\x{2000}\x{3000}A\x{951}\x{1fff}\x{3001}\x{965}
+ 0: A\x{951}\x{1fff}\x{3001}
+
+/[\p{Thai}~~[^]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [^\p{Thai}]
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0d01}
+ 0: \x{d01}
+    a
+ 0: a
+\= Expect no match
+    \x{0e01}
+No match
+
+/[[]~~[^]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0d01}
+ 0: \x{d01}
+    a
+ 0: a
+
+/[[^]~~[]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    \x{0d01}
+ 0: \x{d01}
+    a
+ 0: a
+
+/[[^]~~[^]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        []
+        Ket
+        End
+------------------------------------------------------------------
+\= Expect no match
+    \x{0d01}
+No match
+    a
+No match
+
+/[[^]||\pL]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    a
+ 0: a
+
+/[\pL||[^]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        AllAny
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+    a
+ 0: a
+
+/[\pL~~[^]]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [^\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+\= Expect no match
+    a
+No match
+
+/[[^]~~\pL]/B,utf,alt_extended_class,allow_empty_class
+------------------------------------------------------------------
+        Bra
+        [^\p{L}]
+        Ket
+        End
+------------------------------------------------------------------
+    0
+ 0: 0
+\= Expect no match
+    a
+No match
+
+/([\p{Lu}&&\p{sc=Hung}]+?\x{10c81})+#/utf,alt_extended_class
+    \x{10c80}\x{10cb2}\x{10c81}\x{10c85}\x{10cb0}\x{10cf2}\x{10c81}#\x{10c80}\x{10cb2}\x{10c81}\x{10c85}\x{10cb0}\x{10c81}##
+ 0: \x{10c80}\x{10cb2}\x{10c81}\x{10c85}\x{10cb0}\x{10c81}#
+ 1: \x{10c85}\x{10cb0}\x{10c81}
+
+/[[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]
+&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]&&[\pN--[\pC||\x{9F5}]]]/utf,alt_extended_class
+
+# --------------
+
+/^([\h\x{9000}\x{9002}\x{9004}][\v\x{9000}\x{9002}\x{9004}\x{9006}\x{9008}][\h\v\x{9000}],){4}$/B,utf
+------------------------------------------------------------------
+        Bra
+        ^
+        CBra 1
+        [\x09 \xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{9000}\x{9002}\x{9004}]
+        [\x0a-\x0d\x85\x{2028}-\x{2029}\x{9000}\x{9002}\x{9004}\x{9006}\x{9008}]
+        [\x09-\x0d \x85\xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{2028}-\x{2029}\x{202f}\x{205f}\x{3000}\x{9000}]
+        ,
+        Ket
+        CBra 1
+        [\x09 \xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{9000}\x{9002}\x{9004}]
+        [\x0a-\x0d\x85\x{2028}-\x{2029}\x{9000}\x{9002}\x{9004}\x{9006}\x{9008}]
+        [\x09-\x0d \x85\xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{2028}-\x{2029}\x{202f}\x{205f}\x{3000}\x{9000}]
+        ,
+        Ket
+        CBra 1
+        [\x09 \xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{9000}\x{9002}\x{9004}]
+        [\x0a-\x0d\x85\x{2028}-\x{2029}\x{9000}\x{9002}\x{9004}\x{9006}\x{9008}]
+        [\x09-\x0d \x85\xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{2028}-\x{2029}\x{202f}\x{205f}\x{3000}\x{9000}]
+        ,
+        Ket
+        CBra 1
+        [\x09 \xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{9000}\x{9002}\x{9004}]
+        [\x0a-\x0d\x85\x{2028}-\x{2029}\x{9000}\x{9002}\x{9004}\x{9006}\x{9008}]
+        [\x09-\x0d \x85\xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{2028}-\x{2029}\x{202f}\x{205f}\x{3000}\x{9000}]
+        ,
+        Ket
+        $
+        Ket
+        End
+------------------------------------------------------------------
+  \x09\x0a\x0d,\x{1680}\x{2028}\x{1680},\x{180e}\x{2029}\x{180e},\x{9000}\x{9000}\x{9000},
+ 0: \x{09}\x{0a}\x{0d},\x{1680}\x{2028}\x{1680},\x{180e}\x{2029}\x{180e},\x{9000}\x{9000}\x{9000},
+ 1: \x{9000}\x{9000}\x{9000},
+
+/[z-\p{Lu}]/
+Failed: error 150 at offset 9: invalid range in character class
+
+/[z-\pL]/
+Failed: error 150 at offset 6: invalid range in character class
+
+/[\p{Lu}-z]/
+Failed: error 150 at offset 8: invalid range in character class
+
+/[\pL-z]/
+Failed: error 150 at offset 5: invalid range in character class
 
 # End of testinput5

@@ -10,12 +10,13 @@ AM_CPPFLAGS="-I$(srcdir)/src"
 ## Specify the documentation files that are distributed.
 
 dist_doc_DATA = \
-  AUTHORS \
+  AUTHORS.md \
   COPYING \
   ChangeLog \
-  LICENCE \
+  LICENCE.md \
   NEWS \
   README \
+  SECURITY.md \
   doc/pcre2.txt \
   doc/pcre2-config.txt \
   doc/pcre2grep.txt \
@@ -86,6 +87,7 @@ dist_html_DATA = \
   doc/html/pcre2_set_max_pattern_length.html \
   doc/html/pcre2_set_max_varlookbehind.html \
   doc/html/pcre2_set_offset_limit.html \
+  doc/html/pcre2_set_optimize.html \
   doc/html/pcre2_set_newline.html \
   doc/html/pcre2_set_parens_nest_limit.html \
   doc/html/pcre2_set_recursion_limit.html \
@@ -186,6 +188,7 @@ dist_man_MANS = \
   doc/pcre2_set_max_pattern_length.3 \
   doc/pcre2_set_max_varlookbehind.3 \
   doc/pcre2_set_offset_limit.3 \
+  doc/pcre2_set_optimize.3 \
   doc/pcre2_set_newline.3 \
   doc/pcre2_set_parens_nest_limit.3 \
   doc/pcre2_set_recursion_limit.3 \
@@ -274,6 +277,14 @@ EXTRA_DIST += \
   NON-AUTOTOOLS-BUILD \
   HACKING
 
+# These are support files for building with Bazel or Zig
+
+EXTRA_DIST += \
+  BUILD.bazel \
+  MODULE.bazel \
+  WORKSPACE.bazel \
+  build.zig
+
 # These are support files for building under VMS
 
 EXTRA_DIST += \
@@ -281,16 +292,6 @@ EXTRA_DIST += \
   vms/openvms_readme.txt \
   vms/pcre2.h_patch \
   vms/stdint.h
-
-# These files are used in the preparation of a release
-
-EXTRA_DIST += \
-  PrepareRelease \
-  CheckMan \
-  CleanTxt \
-  Detrail \
-  132html \
-  doc/index.html.src
 
 # These files are usable versions of pcre2.h and config.h that are distributed
 # for the benefit of people who are building PCRE2 manually, without the
@@ -387,6 +388,7 @@ COMMON_SOURCES = \
   src/pcre2_find_bracket.c \
   src/pcre2_internal.h \
   src/pcre2_intmodedep.h \
+  src/pcre2_jit_char_inc.h \
   src/pcre2_jit_compile.c \
   src/pcre2_jit_neon_inc.h \
   src/pcre2_jit_simd_inc.h \
@@ -715,9 +717,12 @@ EXTRA_DIST += \
   testdata/grepinput \
   testdata/grepinput3 \
   testdata/grepinput8 \
+  testdata/grepinputBad8 \
+  testdata/grepinputBad8_Trail \
   testdata/grepinputC.bz2 \
   testdata/grepinputC.gz \
   testdata/grepinputM \
+  testdata/grepinputUN \
   testdata/grepinputv \
   testdata/grepinputx \
   testdata/greplist \
@@ -826,7 +831,7 @@ CLEANFILES += \
         test3outputB \
         testtry \
         teststdout \
-	teststderr \
+        teststderr \
         teststderrgrep \
         testtemp1grep \
         testtemp2grep \
@@ -964,7 +969,6 @@ endif # WITH_GCOV
 EXTRA_DIST += \
   cmake/COPYING-CMAKE-SCRIPTS \
   cmake/FindEditline.cmake \
-  cmake/FindPackageHandleStandardArgs.cmake \
   cmake/FindReadline.cmake \
   cmake/pcre2-config-version.cmake.in \
   cmake/pcre2-config.cmake.in \

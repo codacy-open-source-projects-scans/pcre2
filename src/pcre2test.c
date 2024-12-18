@@ -242,7 +242,7 @@ to hold them as 32-bit code units. */
 enum { PR_OK, PR_SKIP, PR_ABEND };
 
 /* The macro PRINTABLE determines whether to print an output character as-is or
-as a hex value when showing compiled patterns. is We use it in cases when the
+as a hex value when showing compiled patterns. We use it in cases when the
 locale has not been explicitly changed, so as to get consistent output from
 systems that differ in their output from isprint() even in the "C" locale. */
 
@@ -655,6 +655,7 @@ static modstruct modlist[] = {
   { "allvector",                   MOD_PND,  MOD_CTL, CTL2_ALLVECTOR,             PO(control2) },
   { "alt_bsux",                    MOD_PAT,  MOD_OPT, PCRE2_ALT_BSUX,             PO(options) },
   { "alt_circumflex",              MOD_PAT,  MOD_OPT, PCRE2_ALT_CIRCUMFLEX,       PO(options) },
+  { "alt_extended_class",          MOD_PAT,  MOD_OPT, PCRE2_ALT_EXTENDED_CLASS,   PO(options) },
   { "alt_verbnames",               MOD_PAT,  MOD_OPT, PCRE2_ALT_VERBNAMES,        PO(options) },
   { "altglobal",                   MOD_PND,  MOD_CTL, CTL_ALTGLOBAL,              PO(control) },
   { "anchored",                    MOD_PD,   MOD_OPT, PCRE2_ANCHORED,             PD(options) },
@@ -4347,10 +4348,11 @@ static void
 show_compile_options(uint32_t options, const char *before, const char *after)
 {
 if (options == 0) fprintf(outfile, "%s <none>%s", before, after);
-else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+else fprintf(outfile, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
   before,
   ((options & PCRE2_ALT_BSUX) != 0)? " alt_bsux" : "",
   ((options & PCRE2_ALT_CIRCUMFLEX) != 0)? " alt_circumflex" : "",
+  ((options & PCRE2_ALT_EXTENDED_CLASS) != 0)? " alt_extended_class" : "",
   ((options & PCRE2_ALT_VERBNAMES) != 0)? " alt_verbnames" : "",
   ((options & PCRE2_ALLOW_EMPTY_CLASS) != 0)? " allow_empty_class" : "",
   ((options & PCRE2_ANCHORED) != 0)? " anchored" : "",
@@ -7498,6 +7500,13 @@ if (pat_patctl.replacement[0] != 0)
     return PR_OK;
     }
 
+  if (pat_patctl.replacement_case[0] != 0 &&
+      (dat_datctl.control & CTL_NULLCONTEXT) != 0)
+    {
+    fprintf(outfile, "** Replacement case callouts are not supported with null_context.\n");
+    return PR_OK;
+    }
+
   if ((dat_datctl.control & CTL_ALLCAPTURES) != 0)
     fprintf(outfile, "** Ignored with replacement text: allcaptures\n");
   }
@@ -8054,6 +8063,7 @@ for (gmatched = 0;; gmatched++)
   if ((dat_datctl.control & (CTL_FINDLIMITS|CTL_FINDLIMITS_NOHEAP)) != 0)
     {
     capcount = 0;  /* This stops compiler warnings */
+    (void)capcount;
 
     if ((dat_datctl.control & CTL_FINDLIMITS_NOHEAP) == 0 &&
         (FLD(compiled_code, executable_jit) == NULL ||

@@ -1559,7 +1559,7 @@ respectively, when <b>pcre2_compile()</b> returns NULL because a compilation
 error has occurred.
 </P>
 <P>
-There are nearly 100 positive error codes that <b>pcre2_compile()</b> may return
+There are over 100 positive error codes that <b>pcre2_compile()</b> may return
 if it finds an error in the pattern. There are also some negative error codes
 that are used for invalid UTF strings when validity checking is in force. These
 are the same as given by <b>pcre2_match()</b> and <b>pcre2_dfa_match()</b>, and
@@ -1667,6 +1667,16 @@ after any internal newline. However, it does not match after a newline at the
 end of the subject, for compatibility with Perl. If you want a multiline
 circumflex also to match after a terminating newline, you must set
 PCRE2_ALT_CIRCUMFLEX.
+<pre>
+  PCRE2_ALT_EXTENDED_CLASS
+</pre>
+Alters the parsing of character classes to follow the extended syntax
+described by Unicode UTS#18. The PCRE2_ALT_EXTENDED_CLASS option has no impact
+on the behaviour of the Perl-specific "(?[...])" syntax for extended classes,
+but instead enables the alternative syntax of extended class behaviour inside
+ordinary "[...]" character classes. See the
+<a href="pcre2pattern.html"><b>pcre2pattern</b></a>
+documentation for details of the character classes supported.
 <pre>
   PCRE2_ALT_VERBNAMES
 </pre>
@@ -1918,7 +1928,7 @@ This option locks out the use of Unicode properties for handling \B, \b, \D,
 for the PCRE2_UCP option below. In particular, it prevents the creator of the
 pattern from enabling this facility by starting the pattern with (*UCP). This
 option may be useful in applications that process patterns from external
-sources. The option combination PCRE_UCP and PCRE_NEVER_UCP causes an error.
+sources. The option combination PCRE2_UCP and PCRE2_NEVER_UCP causes an error.
 <pre>
   PCRE2_NEVER_UTF
 </pre>
@@ -3798,9 +3808,10 @@ PCRE2_SUBSTITUTE_OVERFLOW_LENGTH changes what happens when the output buffer is
 too small. The default action is to return PCRE2_ERROR_NOMEMORY immediately. If
 this option is set, however, <b>pcre2_substitute()</b> continues to go through
 the motions of matching and substituting (without, of course, writing anything)
-in order to compute the size of buffer that is needed. This value is passed
-back via the <i>outlengthptr</i> variable, with the result of the function still
-being PCRE2_ERROR_NOMEMORY.
+in order to compute the size of buffer that is needed, which will include the
+extra space for the terminating NUL. This value is passed back via the
+<i>outlengthptr</i> variable, with the result of the function still being
+PCRE2_ERROR_NOMEMORY.
 </P>
 <P>
 Passing a buffer size of zero is a permitted way of finding out how much memory
@@ -3934,7 +3945,7 @@ that can be applied to group captures. For example, if group 1 has captured
 <P>
 If either PCRE2_UTF or PCRE2_UCP was set when the pattern was compiled, Unicode
 properties are used for case forcing characters whose code points are greater
-than 127. However, only basic case folding, as determined by the Unicode file
+than 127. However, only simple case folding, as determined by the Unicode file
 <b>CaseFolding.txt</b> is supported. PCRE2 does not support language-specific
 special casing rules such as using different lower case Greek sigmas in the
 middle and ends of words (as defined in the Unicode file
@@ -4414,7 +4425,7 @@ Cambridge, England.
 </P>
 <br><a name="SEC43" href="#TOC1">REVISION</a><br>
 <P>
-Last updated: 04 October 2024
+Last updated: 10 December 2024
 <br>
 Copyright &copy; 1997-2024 University of Cambridge.
 <br>

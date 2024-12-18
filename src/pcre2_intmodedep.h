@@ -47,7 +47,7 @@ to have access to the hidden structures at all supported widths.
 
 Some of the mode-dependent macros are required at different widths for
 different parts of the pcre2test code (in particular, the included
-pcre_printint.c file). We undefine them here so that they can be re-defined for
+pcre2_printint.c file). We undefine them here so that they can be re-defined for
 multiple inclusions. Not all of these are used in pcre2test, but it's easier
 just to undefine them all. */
 
@@ -435,7 +435,7 @@ UTF-16 mode. */
   c = *eptr; \
   if ((c & 0xfc00u) == 0xd800u) GETUTF16LEN(c, eptr, len);
 
-/* Get the next UTF-816character, testing for UTF-16 mode, not advancing the
+/* Get the next UTF-16 character, testing for UTF-16 mode, not advancing the
 pointer, incrementing length if there is a low surrogate. This is called when
 we do not know if we are in UTF-16 mode. */
 
@@ -631,6 +631,7 @@ typedef struct pcre2_real_code {
   void    *executable_jit;        /* Pointer to JIT code */
   uint8_t  start_bitmap[32];      /* Bitmap for starting code unit < 256 */
   CODE_BLOCKSIZE_TYPE blocksize;  /* Total (bytes) that was malloc-ed */
+  CODE_BLOCKSIZE_TYPE code_start; /* Byte code start offset */
   uint32_t magic_number;          /* Paranoid and endianness check */
   uint32_t compile_options;       /* Options passed to pcre2_compile() */
   uint32_t overall_options;       /* Options after processing the pattern */
@@ -778,6 +779,8 @@ typedef struct compile_block {
   uint32_t nltype;                 /* Newline type */
   uint32_t nllen;                  /* Newline string length */
   PCRE2_UCHAR nl[4];               /* Newline string when fixed length */
+  uint8_t class_op_used[ECLASS_NEST_LIMIT]; /* Operation used for
+                                               extended classes */
   uint32_t req_varyopt;            /* "After variable item" flag for reqbyte */
   uint32_t max_varlookbehind;      /* Limit for variable lookbehinds */
   int  max_lookbehind;             /* Maximum lookbehind encountered (characters) */
@@ -786,8 +789,9 @@ typedef struct compile_block {
   BOOL had_recurse;                /* Had a pattern recursion or subroutine call */
   BOOL dupnames;                   /* Duplicate names exist */
 #ifdef SUPPORT_WIDE_CHARS
-  class_ranges* cranges;           /* First class range. */
-  class_ranges* next_cranges;      /* Next class range. */
+  class_ranges *cranges;           /* First class range. */
+  class_ranges *next_cranges;      /* Next class range. */
+  size_t char_lists_size;          /* Current size of character lists */
 #endif
 } compile_block;
 
@@ -822,7 +826,7 @@ typedef struct heapframe {
   to RRMATCH(), but which do not need to be copied to new frames. */
 
   PCRE2_SPTR ecode;          /* The current position in the pattern */
-  PCRE2_SPTR temp_sptr[2];   /* Used for short-term PCRE_SPTR values */
+  PCRE2_SPTR temp_sptr[2];   /* Used for short-term PCRE2_SPTR values */
   PCRE2_SIZE length;         /* Used for character, string, or code lengths */
   PCRE2_SIZE back_frame;     /* Amount to subtract on RRETURN */
   PCRE2_SIZE temp_size;      /* Used for short-term PCRE2_SIZE values */
@@ -870,11 +874,10 @@ typedef struct heapframe {
   PCRE2_SIZE ovector[131072];   /* Must be last in the structure */
 } heapframe;
 
-/* This typedef is a check that the size of the heapframe structure is a
-multiple of PCRE2_SIZE. See various comments above. */
+/* Assert that the size of the heapframe structure is a multiple of PCRE2_SIZE.
+See various comments above. */
 
-typedef char check_heapframe_size[
-  ((sizeof(heapframe) % sizeof(PCRE2_SIZE)) == 0)? (+1):(-1)];
+STATIC_ASSERT((sizeof(heapframe) % sizeof(PCRE2_SIZE)) == 0, heapframe_size);
 
 /* Structure for computing the alignment of heapframe. */
 

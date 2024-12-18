@@ -38,9 +38,9 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
-/* This module contains an internal function that is used to match an extended
-class. It is used by pcre2_auto_possessify() and by both pcre2_match() and
-pcre2_def_match(). */
+/* This module contains two internal functions that are used to match
+OP_XCLASS and OP_ECLASS. It is used by pcre2_auto_possessify() and by both
+pcre2_match() and pcre2_dfa_match(). */
 
 
 #ifdef HAVE_CONFIG_H
@@ -66,7 +66,7 @@ Returns:      TRUE if character matches, else FALSE
 */
 
 BOOL
-PRIV(xclass)(uint32_t c, PCRE2_SPTR data, BOOL utf)
+PRIV(xclass)(uint32_t c, PCRE2_SPTR data, const uint8_t *char_lists_end, BOOL utf)
 {
 /* Update PRIV(update_classbits) when this function is changed. */
 PCRE2_UCHAR t;
@@ -105,10 +105,6 @@ if (*data == XCL_PROP || *data == XCL_NOTPROP)
 
     switch(*data)
       {
-      case PT_ANY:
-      if (isprop) return not_negated;
-      break;
-
       case PT_LAMP:
       chartype = prop->chartype;
       if ((chartype == ucp_Lu || chartype == ucp_Ll ||
@@ -320,8 +316,7 @@ data++;
 #endif  /* CODE_UNIT_WIDTH */
 
 /* Align characters. */
-next_char = (const uint8_t*)data;
-next_char += (type >> XCL_ALIGNMENT_SHIFT) & XCL_ALIGNMENT_MASK;
+next_char = char_lists_end - (GET(data, 0) << 1);
 type &= XCL_TYPE_MASK;
 
 /* Alignment check. */
@@ -333,6 +328,7 @@ if (c >= XCL_CHAR_LIST_HIGH_16_START)
   if (max_index == XCL_ITEM_COUNT_MASK)
     {
     max_index = *(const uint16_t*)next_char;
+    PCRE2_ASSERT(max_index >= XCL_ITEM_COUNT_MASK);
     next_char += 2;
     }
 
@@ -349,6 +345,7 @@ if (c < XCL_CHAR_LIST_LOW_32_START)
   if (max_index == XCL_ITEM_COUNT_MASK)
     {
     max_index = *(const uint16_t*)next_char;
+    PCRE2_ASSERT(max_index >= XCL_ITEM_COUNT_MASK);
     next_char += 2;
     }
 
@@ -382,6 +379,7 @@ max_index = type & XCL_ITEM_COUNT_MASK;
 if (max_index == XCL_ITEM_COUNT_MASK)
   {
   max_index = *(const uint16_t*)next_char;
+  PCRE2_ASSERT(max_index >= XCL_ITEM_COUNT_MASK);
   next_char += 2;
   }
 
@@ -399,6 +397,7 @@ if (c >= XCL_CHAR_LIST_HIGH_32_START)
   if (max_index == XCL_ITEM_COUNT_MASK)
     {
     max_index = *(const uint32_t*)next_char;
+    PCRE2_ASSERT(max_index >= XCL_ITEM_COUNT_MASK);
     next_char += 4;
     }
 
@@ -439,6 +438,108 @@ while (TRUE)
   else
     return (value == c || (value & XCL_CHAR_END) == 0) == not_negated;
   }
+}
+
+
+
+/*************************************************
+*       Match character against an ECLASS        *
+*************************************************/
+
+/* This function is called to match a character against an extended class
+used for describing characters using boolean operations on sets.
+
+Arguments:
+  c           the character
+  data_start  points to the start of the ECLASS data
+  data_end    points one-past-the-last of the ECLASS data
+  utf         TRUE if in UTF mode
+
+Returns:      TRUE if character matches, else FALSE
+*/
+
+BOOL
+PRIV(eclass)(uint32_t c, PCRE2_SPTR data_start, PCRE2_SPTR data_end,
+  const uint8_t *char_lists_end, BOOL utf)
+{
+PCRE2_SPTR ptr = data_start;
+PCRE2_UCHAR flags;
+uint32_t stack = 0;
+int stack_depth = 0;
+
+PCRE2_ASSERT(data_start < data_end);
+flags = *ptr++;
+PCRE2_ASSERT((flags & ECL_MAP) == 0 ||
+             (data_end - ptr) >= 32 / (int)sizeof(PCRE2_UCHAR));
+
+/* Code points < 256 are matched against a bitmap, if one is present.
+Otherwise all codepoints are checked later. */
+
+if ((flags & ECL_MAP) != 0)
+  {
+  if (c < 256)
+    return (((const uint8_t *)ptr)[c/8] & (1u << (c&7))) != 0;
+
+  /* Skip the bitmap. */
+  ptr += 32 / sizeof(PCRE2_UCHAR);
+  }
+
+/* Do a little loop, until we reach the end of the ECLASS. */
+while (ptr < data_end)
+  {
+  switch (*ptr)
+    {
+    case ECL_AND:
+    ++ptr;
+    stack = (stack >> 1) & (stack | ~(uint32_t)1u);
+    PCRE2_ASSERT(stack_depth >= 2);
+    --stack_depth;
+    break;
+
+    case ECL_OR:
+    ++ptr;
+    stack = (stack >> 1) | (stack & (uint32_t)1u);
+    PCRE2_ASSERT(stack_depth >= 2);
+    --stack_depth;
+    break;
+
+    case ECL_XOR:
+    ++ptr;
+    stack = (stack >> 1) ^ (stack & (uint32_t)1u);
+    PCRE2_ASSERT(stack_depth >= 2);
+    --stack_depth;
+    break;
+
+    case ECL_NOT:
+    ++ptr;
+    stack ^= (uint32_t)1u;
+    PCRE2_ASSERT(stack_depth >= 1);
+    break;
+
+    case ECL_XCLASS:
+      {
+      uint32_t matched = PRIV(xclass)(c, ptr + 1 + LINK_SIZE, char_lists_end, utf);
+
+      ptr += GET(ptr, 1);
+      stack = (stack << 1) | matched;
+      ++stack_depth;
+      break;
+      }
+
+    /* This should never occur, but compilers may mutter if there is no
+    default. */
+
+    default:
+    PCRE2_DEBUG_UNREACHABLE();
+    return FALSE;
+    }
+  }
+
+PCRE2_ASSERT(stack_depth == 1);
+(void)stack_depth;  /* Ignore unused variable, if assertions are disabled. */
+
+/* The final bit left on the stack now holds the match result. */
+return (stack & 1u) != 0;
 }
 
 /* End of pcre2_xclass.c */

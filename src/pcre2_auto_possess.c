@@ -68,7 +68,7 @@ The Unicode property types (\P and \p) have to be present to fill out the table
 because of what their opcode values are, but the table values should always be
 zero because property types are handled separately in the code. The last four
 columns apply to items that cannot be repeated, so there is no need to have
-rows for them. Note that OP_DIGIT etc. are generated only when PCRE_UCP is
+rows for them. Note that OP_DIGIT etc. are generated only when PCRE2_UCP is
 *not* set. When it is set, \d etc. are converted into OP_(NOT_)PROP codes. */
 
 #define APTROWS (LAST_AUTOTAB_LEFT_OP - FIRST_AUTOTAB_OP + 1)
@@ -127,21 +127,21 @@ opcode is used to select the column. The values are as follows:
 */
 
 static const uint8_t propposstab[PT_TABSIZE][PT_TABSIZE] = {
-/* ANY LAMP GC  PC  SC  SCX ALNUM SPACE PXSPACE WORD CLIST UCNC BIDICL BOOL */
-  { 0,  0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_ANY */
-  { 0,  3,  0,  0,  0,   0,    3,    1,      1,   0,    0,   0,    0,    0 },  /* PT_LAMP */
-  { 0,  0,  2,  4,  0,   0,    9,   10,     10,  11,    0,   0,    0,    0 },  /* PT_GC */
-  { 0,  0,  5,  2,  0,   0,   15,   16,     16,  17,    0,   0,    0,    0 },  /* PT_PC */
-  { 0,  0,  0,  0,  2,   2,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_SC */
-  { 0,  0,  0,  0,  2,   2,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_SCX */
-  { 0,  3,  6, 12,  0,   0,    3,    1,      1,   0,    0,   0,    0,    0 },  /* PT_ALNUM */
-  { 0,  1,  7, 13,  0,   0,    1,    3,      3,   1,    0,   0,    0,    0 },  /* PT_SPACE */
-  { 0,  1,  7, 13,  0,   0,    1,    3,      3,   1,    0,   0,    0,    0 },  /* PT_PXSPACE */
-  { 0,  0,  8, 14,  0,   0,    0,    1,      1,   3,    0,   0,    0,    0 },  /* PT_WORD */
-  { 0,  0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_CLIST */
-  { 0,  0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   3,    0,    0 },  /* PT_UCNC */
-  { 0,  0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_BIDICL */
-  { 0,  0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 }   /* PT_BOOL */
+/* LAMP GC  PC  SC  SCX ALNUM SPACE PXSPACE WORD CLIST UCNC BIDICL BOOL */
+  { 3,  0,  0,  0,   0,    3,    1,      1,   0,    0,   0,    0,    0 },  /* PT_LAMP */
+  { 0,  2,  4,  0,   0,    9,   10,     10,  11,    0,   0,    0,    0 },  /* PT_GC */
+  { 0,  5,  2,  0,   0,   15,   16,     16,  17,    0,   0,    0,    0 },  /* PT_PC */
+  { 0,  0,  0,  2,   2,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_SC */
+  { 0,  0,  0,  2,   2,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_SCX */
+  { 3,  6, 12,  0,   0,    3,    1,      1,   0,    0,   0,    0,    0 },  /* PT_ALNUM */
+  { 1,  7, 13,  0,   0,    1,    3,      3,   1,    0,   0,    0,    0 },  /* PT_SPACE */
+  { 1,  7, 13,  0,   0,    1,    3,      3,   1,    0,   0,    0,    0 },  /* PT_PXSPACE */
+  { 0,  8, 14,  0,   0,    0,    1,      1,   3,    0,   0,    0,    0 },  /* PT_WORD */
+  { 0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_CLIST */
+  { 0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   3,    0,    0 },  /* PT_UCNC */
+  { 0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 },  /* PT_BIDICL */
+  { 0,  0,  0,  0,   0,    0,    0,      0,   0,    0,   0,    0,    0 }   /* PT_BOOL */
+  /* PT_ANY does not need a record. */
 };
 
 /* This table is used to check whether auto-possessification is possible
@@ -334,6 +334,7 @@ get_chr_property_list(PCRE2_SPTR code, BOOL utf, BOOL ucp, const uint8_t *fcc,
 PCRE2_UCHAR c = *code;
 PCRE2_UCHAR base;
 PCRE2_SPTR end;
+PCRE2_SPTR class_end;
 uint32_t chr;
 
 #ifdef SUPPORT_UNICODE
@@ -481,11 +482,13 @@ switch(c)
   case OP_CLASS:
 #ifdef SUPPORT_WIDE_CHARS
   case OP_XCLASS:
-  if (c == OP_XCLASS)
+  case OP_ECLASS:
+  if (c == OP_XCLASS || c == OP_ECLASS)
     end = code + GET(code, 0) - 1;
   else
 #endif
     end = code + 32 / sizeof(PCRE2_UCHAR);
+  class_end = end;
 
   switch(*end)
     {
@@ -513,6 +516,7 @@ switch(c)
     break;
     }
   list[2] = (uint32_t)(end - code);
+  list[3] = (uint32_t)(end - class_end);
   return end;
   }
 
@@ -1111,9 +1115,18 @@ for(;;)
 #ifdef SUPPORT_WIDE_CHARS
       case OP_XCLASS:
       if (PRIV(xclass)(chr, (list_ptr == list ? code : base_end) -
-          list_ptr[2] + LINK_SIZE, utf)) return FALSE;
+          list_ptr[2] + LINK_SIZE, (const uint8_t*)cb->start_code, utf))
+        return FALSE;
       break;
-#endif
+
+      case OP_ECLASS:
+      if (PRIV(eclass)(chr,
+          (list_ptr == list ? code : base_end) - list_ptr[2] + LINK_SIZE,
+          (list_ptr == list ? code : base_end) - list_ptr[3],
+          (const uint8_t*)cb->start_code, utf))
+        return FALSE;
+      break;
+#endif /* SUPPORT_WIDE_CHARS */
 
       default:
       return FALSE;
@@ -1129,6 +1142,7 @@ for(;;)
   }
 
 PCRE2_DEBUG_UNREACHABLE(); /* Control should never reach here */
+return FALSE;              /* Avoid compiler warnings */
 }
 
 
@@ -1167,7 +1181,11 @@ for (;;)
   {
   c = *code;
 
-  if (c >= OP_TABLE_LENGTH) return -1;   /* Something gone wrong */
+  if (c >= OP_TABLE_LENGTH)
+    {
+    PCRE2_DEBUG_UNREACHABLE();
+    return -1;   /* Something gone wrong */
+    }
 
   if (c >= OP_STAR && c <= OP_TYPEPOSUPTO)
     {
@@ -1216,10 +1234,14 @@ for (;;)
       }
     c = *code;
     }
-  else if (c == OP_CLASS || c == OP_NCLASS || c == OP_XCLASS)
+  else if (c == OP_CLASS || c == OP_NCLASS
+#ifdef SUPPORT_WIDE_CHARS
+           || c == OP_XCLASS || c == OP_ECLASS
+#endif
+           )
     {
 #ifdef SUPPORT_WIDE_CHARS
-    if (c == OP_XCLASS)
+    if (c == OP_XCLASS || c == OP_ECLASS)
       repeat_opcode = code + GET(code, 1);
     else
 #endif
@@ -1229,7 +1251,7 @@ for (;;)
     if (c >= OP_CRSTAR && c <= OP_CRMINRANGE)
       {
       /* The return from get_chr_property_list() will never be NULL when
-      *code (aka c) is one of the three class opcodes. However, gcc with
+      *code (aka c) is one of the four class opcodes. However, gcc with
       -fanalyzer notes that a NULL return is possible, and grumbles. Hence we
       put in a check. */
 
@@ -1297,6 +1319,7 @@ for (;;)
 
 #ifdef SUPPORT_WIDE_CHARS
     case OP_XCLASS:
+    case OP_ECLASS:
     code += GET(code, 1);
     break;
 #endif
