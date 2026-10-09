@@ -1,17 +1,13 @@
 #! /bin/bash
 
+set -e
+
 # Script to prepare the files for building a PCRE2 release. It does some
 # processing of the documentation and detrails files.
 
 # You must run this script before runnning "make dist". If its first argument
 # is "doc", it stops after preparing the documentation. There are no other
 # arguments. The script makes use of the following files:
-
-# 132html     A Perl script that converts a .1 or .3 man page into HTML. It
-#             "knows" the relevant troff constructs that are used in the PCRE2
-#             man pages.
-
-# CheckMan    A Perl script that checks man pages for typos in the mark up.
 
 # CleanTxt    A Perl script that cleans up the output of "nroff -man" by
 #             removing backspaces and other redundant text so as to produce
@@ -21,10 +17,8 @@
 
 # LintMan     A Perl script that lints man pages looking for inconsistencies.
 
-# doc/index.html.src
-#             A file that is copied as index.html into the doc/html directory
-#             when the HTML documentation is built. It works like this so that
-#             doc/html can be deleted and re-created from scratch.
+# AsciidocRender
+#             A script that renders an AsciiDoc source as a manpage and HTML.
 
 # README & NON-AUTOTOOLS-BUILD
 #             These files are copied into the doc/html directory, with .txt
@@ -36,6 +30,9 @@
 # "HYPHEN" if the system is using a UTF-8 locale (like "C.UTF-8").
 export LANG=C LC_ALL=C
 
+# Use groff's conventional terminal width for rendered manpage text.
+MANPAGE_WIDTH=78
+
 # Extract the current release version from configure.ac.
 CURRENT_RELEASE=`grep -E 'm4_define\(pcre2_(major|minor|prerelease)' configure.ac | \
     grep -E -o '\[.*\]' | \
@@ -43,30 +40,61 @@ CURRENT_RELEASE=`grep -E 'm4_define\(pcre2_(major|minor|prerelease)' configure.a
     tr -d '[]\n'`
 export CURRENT_RELEASE
 
-# First, sort out the documentation. Remove pcre2demo.3 first because it won't
-# pass the markup check (it is created below, using markup that none of the
-# other pages use).
+# First, sort out the documentation. The AsciiDoc sources are canonical; the
+# retained troff files are used only to review the conversion.
 
 cd doc
 echo Processing documentation
 
-/bin/rm -f pcre2demo.3
+# Generate pcre2demo.adoc directly from its C source.
 
-# Check the remaining man pages
+echo "Making pcre2demo.adoc"
+../maint/AsciidocDemo.rb
 
-perl ../maint/CheckMan *.1 *.3
-if [ $? != 0 ] ; then exit 1; fi
+# Generate the HTML documentation index from the manpage metadata.
 
-perl ../maint/LintMan -v *.3
-if [ $? != 0 ] ; then exit 1; fi
+echo "Making index.adoc"
+../maint/AsciidocIndex.rb
 
-# Verify the version number in the man pages
+# Verify the version number in AsciiDoc manpages and render them before their
+# generated manpages are needed by the text and warning checks below.
 
-for file in *.1 *.3 ; do
-  if ! grep -qE ".TH.*\"PCRE2 $CURRENT_RELEASE\"" "$file" ; then
+for file in *.adoc ; do
+  if [ "$file" = "index.adoc" ] ; then
+    continue
+  fi
+  if ! grep -qE "^:mansource: PCRE2 $CURRENT_RELEASE$" "$file" ; then
     echo "Version number in $file does not match current release"
     exit 1
   fi
+done
+
+echo "Making HTML and manpage documentation"
+mkdir -p html
+find html -mindepth 1 -delete
+mkdir -p man
+rm -f man/*
+cp ../README html/README.txt
+cp ../NON-AUTOTOOLS-BUILD html/NON-AUTOTOOLS-BUILD.txt
+
+for file in *.adoc ; do
+  if [ "$file" = "index.adoc" ] ; then
+    echo "  Making index.html"
+    asciidoctor --failure-level WARN -v \
+      --require ../maint/AsciidocConverterPcre2.rb \
+      --backend html5 \
+      --out-file html/index.html index.adoc
+    continue
+  fi
+
+  base=`basename $file .adoc`
+  section=`sed -n 's/^:manvolnum: //p' "$file"`
+  if [ "$section" != "1" ] && [ "$section" != "3" ] ; then
+    echo "Invalid manpage section in $file"
+    exit 1
+  fi
+  echo "  Making $base.$section and $base.html"
+  ../maint/AsciidocRender "$file" "man/$base.$section" "html/$base.html"
 done
 
 # Make Text form of the documentation. It needs some mangling to make it
@@ -92,7 +120,7 @@ for file in pcre2 pcre2api pcre2build pcre2callout pcre2compat pcre2jit \
             pcre2posix pcre2sample pcre2serialize pcre2syntax \
             pcre2unicode ; do
   echo "  Processing $file.3"
-  nroff -c -man $file.3 >$file.rawtxt
+  nroff -c -t -Kutf8 -Tutf8 -rLL=${MANPAGE_WIDTH}n -man man/$file.3 >$file.rawtxt
   perl ../maint/CleanTxt <$file.rawtxt >>pcre2.txt
   /bin/rm $file.rawtxt
   echo "------------------------------------------------------------------------------" >>pcre2.txt
@@ -105,65 +133,20 @@ done
 # The three commands
 for file in pcre2test pcre2grep pcre2-config ; do
   echo Making $file.txt
-  nroff -c -man $file.1 >$file.rawtxt
+  nroff -c -t -Kutf8 -Tutf8 -rLL=${MANPAGE_WIDTH}n -man man/$file.1 >$file.rawtxt
   perl ../maint/CleanTxt <$file.rawtxt >$file.txt
   /bin/rm $file.rawtxt
 done
 
 
-# Make pcre2demo.3 from the pcre2demo.c source file
-
-echo "Making pcre2demo.3"
-perl <<"END" >pcre2demo.3
-  open(IN, "<", "../src/pcre2demo.c") or die "Failed to open src/pcre2demo.c";
-  open(OUT, ">", "pcre2demo.3") or die "Failed to create pcre2demo.3";
-  my $t = `git log -n1 --date=format:"%d %B %Y" --format=%cd ../src/pcre2demo.c`;
-  chomp $t;
-  my $version = $ENV{CURRENT_RELEASE};
-  print OUT ".TH PCRE2DEMO 3 \"", $t, '" "PCRE2 ', $version, "\"\n" .
-            ".\\\"AUTOMATICALLY GENERATED BY UpdateAlways - do not EDIT!\n" .
-            ".SH NAME\n" .
-            "PCRE2DEMO - A demonstration C program for PCRE2\n" .
-            ".SH \"SOURCE CODE\"\n" .
-            ".rs\n" .
-            ".sp\n" .
-            ".\\\" Start example.\n" .
-            ".de EX\n" .
-	    ".	do ds mF \\\\n[.fam]\n" .
-            ".  nr mE \\\\n(.f\n" .
-            ".  nf\n" .
-            ".  nh\n" .
-	    ".	do fam C\n" .
-            ".  ft CW\n" .
-            "..\n" .
-            ".\n" .
-            ".\n" .
-            ".\\\" End example.\n" .
-            ".de EE\n" .
-	    ".	do fam \\\\*(mF\n" .
-            ".  ft \\\\n(mE\n" .
-            ".  fi\n" .
-            ".  hy \\\\n(HY\n" .
-            "..\n" .
-            ".\n" .
-            ".RS -7\n" .
-            ".EX\n" ;
-  while (<IN>)
-    {
-    s/\\/\\e/g;
-    print OUT;
-    }
-  print OUT ".EE\n";
-  close(OUT);
-  close(IN);
-END
-if [ $? != 0 ] ; then exit 1; fi
-
-
 # Verify that `man` can process the pages without warnings.
+echo "Validating man pages"
 if man --help 2>/dev/null | grep -q warnings ; then
-  for file in *.1 *.3 ; do
-    MAN_OUT=`MANROFFSEQ='' MANWIDTH=80 man --warnings=w,all -E UTF-8 -l -Tutf8 -Z "$file" 2>&1 >/dev/null`
+  for file in man/*.1 man/*.3 ; do
+    if ! MAN_OUT=$(MANROFFSEQ='' MANWIDTH=$MANPAGE_WIDTH man --warnings=w,all -E UTF-8 -l -Tutf8 -Z "$file" 2>&1 >/dev/null) ; then
+      printf "Running man failed:\n%s\n" "$MAN_OUT" >&2
+      exit 1
+    fi
     if [ "$MAN_OUT" != "" ]; then
       printf "Running man generated warnings:\n%s\n" "$MAN_OUT"
       exit 1
@@ -176,41 +159,6 @@ else
 fi
 
 
-# Make HTML form of the documentation.
-
-echo "Making HTML documentation"
-/bin/rm html/*
-cp index.html.src html/index.html
-cp ../README html/README.txt
-cp ../NON-AUTOTOOLS-BUILD html/NON-AUTOTOOLS-BUILD.txt
-
-for file in *.1 ; do
-  base=`basename $file .1`
-  echo "  Making $base.html"
-  perl ../maint/132html -toc $base <$file >html/$base.html
-  if [ $? != 0 ] ; then exit 1; fi
-done
-
-# Exclude table of contents for function summaries. It seems that expr
-# forces an anchored regex. Also exclude them for small pages that have
-# only one section.
-
-for file in *.3 ; do
-  base=`basename $file .3`
-  toc=-toc
-  if [ `expr $base : '.*_'` -ne 0 ] ; then toc="" ; fi
-  if [ "$base" = "pcre2sample" ]  || \
-     [ "$base" = "pcre2compat" ]  || \
-     [ "$base" = "pcre2demo" ]    || \
-     [ "$base" = "pcre2limits" ]  || \
-     [ "$base" = "pcre2unicode" ] ; then
-    toc=""
-  fi
-  echo "  Making $base.html"
-  perl ../maint/132html $toc $base <$file >html/$base.html
-  if [ $? != 0 ] ; then exit 1; fi
-done
-
 # End of documentation processing; stop if only documentation required.
 
 cd ..
@@ -218,9 +166,8 @@ echo Documentation done
 if [ "$1" = "doc" ] ; then exit; fi
 
 # These files are detrailed; do not detrail the test data because there may be
-# significant trailing spaces. Do not detrail RunTest.bat, because it has CRLF
-# line endings and the detrail script removes all trailing white space. The
-# configure files are also omitted from the detrailing.
+# significant trailing spaces. The configure files are also omitted from the
+# detrailing.
 
 txt_files=(
   AUTHORS.md
@@ -237,9 +184,13 @@ txt_files=(
   NON-AUTOTOOLS-BUILD
   README
   RunGrepTest
+  RunGrepTest.py
   RunTest
+  RunTest.py
   SECURITY.md
+  SUPPORT-LIFECYCLE.md
   build.zig
+  build.zig.zon
   configure.ac
   libpcre2-8.pc.in
   libpcre2-16.pc.in
@@ -248,19 +199,18 @@ txt_files=(
   pcre2-config.in
   perltest.sh
   cmake/COPYING-CMAKE-SCRIPTS
-  cmake/{*.cmake,*.cmake.in}
+  cmake/{*.cmake,*.in}
   m4/ax_pthread.m4
   m4/pcre2_check_vscript.m4
   m4/pcre2_visibility.m4
   m4/pcre2_zos.m4
   doc/p*
+  doc/man/*
   doc/html/*
   src/libpcre2-*.sym.in
   )
 
 crlf_files=(
-  RunGrepTest.bat
-  RunTest.bat
   )
 
 c_files=(
@@ -329,6 +279,17 @@ echo Validating all text
 perl maint/CheckTxt "${txt_files[@]}"
 perl maint/CheckTxt -ascii "${c_files[@]}"
 perl maint/CheckTxt -crlf "${crlf_files[@]}"
+
+if ! SLJIT_COMMIT=$(git rev-parse HEAD:deps/sljit 2>/dev/null) || [ -z "$SLJIT_COMMIT" ] ; then
+  echo "Warning: could not find deps/sljit in the tree; not updating build.zig.zon"
+elif grep -q "sljit.git#$SLJIT_COMMIT" build.zig.zon ; then
+  echo "SLJIT pinned in build.zig.zon to $SLJIT_COMMIT"
+elif ! command -v zig >/dev/null 2>&1 ; then
+  echo "Warning: zig is not executable; not updating build.zig.zon"
+else
+  echo "Updating SLJIT pin in build.zig.zon to $SLJIT_COMMIT"
+  zig fetch --save=sljit "git+https://github.com/zherczeg/sljit.git#$SLJIT_COMMIT"
+fi
 
 # Verify the version number in the Bazel file
 if ! grep -E "version = \"$CURRENT_RELEASE\"" MODULE.bazel >/dev/null ; then
