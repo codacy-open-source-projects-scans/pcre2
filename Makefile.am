@@ -17,11 +17,10 @@ PHONY_TARGETS=
 
 dist_doc_DATA = \
   AUTHORS.md \
-  COPYING \
   ChangeLog \
   LICENCE.md \
   NEWS \
-  README \
+  README.md \
   SECURITY.md \
   SUPPORT-LIFECYCLE.md \
   doc/pcre2.txt \
@@ -142,6 +141,17 @@ dist_html_DATA = \
   doc/html/pcre2syntax.html \
   doc/html/pcre2test.html \
   doc/html/pcre2unicode.html
+
+dist_htmlcss_DATA = doc/html/css/document.css doc/html/css/standalone.css
+htmlcssdir = $(htmldir)/css
+dist_htmlimages_DATA = \
+  doc/html/images/pcre2-header-dark.svg \
+  doc/html/images/pcre2-header-light.svg \
+  doc/html/images/pcre2-hero-dark-hover.svg \
+  doc/html/images/pcre2-hero-dark.svg \
+  doc/html/images/pcre2-hero-light-hover.svg \
+  doc/html/images/pcre2-hero-light.svg
+htmlimagesdir = $(htmldir)/images
 
 dist_man_MANS = \
   doc/man/pcre2-config.1 \
@@ -305,7 +315,7 @@ EXTRA_DIST += \
 # These files contain maintenance information
 
 EXTRA_DIST += \
-  NON-AUTOTOOLS-BUILD \
+  NON-AUTOTOOLS-BUILD.md \
   HACKING
 
 # These are the documentation files that are included in the tarball but not
@@ -884,6 +894,10 @@ endif # WITH_GCOV
 TESTS += RunTest
 dist_noinst_SCRIPTS += RunTest RunTest.py
 
+## The Perl-comparison tests.
+
+dist_noinst_SCRIPTS += PerlTest.sh RunPerlTest
+
 ## When the 8-bit library is configured, pcre2grep will have been built.
 
 if WITH_PCRE2_8
@@ -1003,8 +1017,7 @@ EXTRA_DIST += \
   testdata/testoutputheap-16 \
   testdata/testoutputheap-32 \
   testdata/testoutputheap-8 \
-  testdata/valgrind-jit.supp \
-  perltest.sh
+  testdata/valgrind-jit.supp
 
 # RunTest and RunGrepTest should clean up after themselves, but just in case
 # they don't, add their working files to CLEANFILES.

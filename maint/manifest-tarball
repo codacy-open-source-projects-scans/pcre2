@@ -3,7 +3,6 @@ drwxr-xr-x tarball-dir/pcre2-SNAPSHOT
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/AUTHORS.md
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/BUILD.bazel
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/CMakeLists.txt
--rw-r--r-- tarball-dir/pcre2-SNAPSHOT/COPYING
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/ChangeLog
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/HACKING
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/INSTALL
@@ -12,10 +11,12 @@ drwxr-xr-x tarball-dir/pcre2-SNAPSHOT
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/Makefile.am
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/Makefile.in
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/NEWS
--rw-r--r-- tarball-dir/pcre2-SNAPSHOT/NON-AUTOTOOLS-BUILD
--rw-r--r-- tarball-dir/pcre2-SNAPSHOT/README
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/NON-AUTOTOOLS-BUILD.md
+-rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/PerlTest.sh
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/README.md
 -rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/RunGrepTest
 -rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/RunGrepTest.py
+-rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/RunPerlTest
 -rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/RunTest
 -rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/RunTest.py
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/SECURITY.md
@@ -82,6 +83,16 @@ drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/doc
 drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/doc/html
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/NON-AUTOTOOLS-BUILD.txt
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/README.txt
+drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/doc/html/css
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/css/document.css
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/css/standalone.css
+drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/doc/html/images
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-header-dark.svg
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-header-light.svg
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-hero-dark-hover.svg
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-hero-dark.svg
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-hero-light-hover.svg
+-rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/images/pcre2-hero-light.svg
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/index.html
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/pcre2-config.html
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/doc/html/pcre2.html
@@ -472,7 +483,6 @@ drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/patches
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/patches/pcre2-10.48-Write-serialization-padding.patch
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/patches/pcre2-10.49-Fix-large-stack-allocation.patch
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/pcre2-config.in
--rwxr-xr-x tarball-dir/pcre2-SNAPSHOT/perltest.sh
 drwxr-xr-x tarball-dir/pcre2-SNAPSHOT/src
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/src/config-cmake.h.in
 -rw-r--r-- tarball-dir/pcre2-SNAPSHOT/src/config-meson.h.in

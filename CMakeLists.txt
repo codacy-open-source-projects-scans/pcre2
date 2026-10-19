@@ -797,7 +797,7 @@ file(REMOVE ${PROJECT_SOURCE_DIR}/src/pcre2.h)
 # Release and library version information
 # -----------------------------------------------------------------------------
 
-# These lines are updated by UpdateRelease.py
+# These lines are updated by UpdateRelease.rb
 set(PCRE2_MAJOR "10")
 set(PCRE2_MINOR "50")
 set(PCRE2_PRERELEASE "-DEV")
@@ -1544,11 +1544,10 @@ file(
   GLOB txts
   ${PROJECT_SOURCE_DIR}/doc/*.txt
   AUTHORS.md
-  COPYING
   ChangeLog
   LICENCE.md
   NEWS
-  README
+  README.md
   SECURITY.md
   SUPPORT-LIFECYCLE.md
 )
@@ -1559,6 +1558,11 @@ install(FILES ${man1} DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 install(FILES ${man3} DESTINATION ${CMAKE_INSTALL_MANDIR}/man3)
 install(FILES ${txts} DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/pcre2)
 install(FILES ${html} DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/pcre2/html)
+install(FILES ${PROJECT_SOURCE_DIR}/doc/html/css/document.css
+              ${PROJECT_SOURCE_DIR}/doc/html/css/standalone.css
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/pcre2/html/css)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/doc/html/images
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/pcre2/html)
 
 if(MSVC AND INSTALL_MSVC_PDB)
   install(FILES ${DLL_PDB_FILES} DESTINATION ${CMAKE_INSTALL_BINDIR} CONFIGURATIONS Debug RelWithDebInfo)

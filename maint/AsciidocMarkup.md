@@ -1,267 +1,121 @@
-# Semantic AsciiDoc markup for the PCRE2 manuals
+# AsciiDoc conventions for the PCRE2 manuals
 
-This document records the conventions used by the PCRE2 AsciiDoc sources and
-by `maint/AsciidocConverterPcre2.rb`. It applies to the long-form manuals, the
-individual `pcre2_*` API pages, and the command manuals. The source files are
-the authority; the custom converter defines the small vocabulary that has
-backend-specific behavior.
+The manuals use standard AsciiDoc with a small semantic vocabulary for API
+names, source code and pattern syntax. The goal is readable source and
+consistent HTML and terminal presentation, not a machine-readable API schema.
+Meaning must remain clear without colour.
 
-The conventions below define the semantic markup and source style used
-throughout the manuals.
+## Rendering and styles
 
-## Goals
-
-The markup must:
-
-* Carry enough meaning to support restrained semantic presentation in HTML.
-* Produce highly readable terminal output through Asciidoctor's manpage
-  backend.
-* Remain easy to type, read, review, and maintain in source form.
-* Prefer standard AsciiDoc structure. Roles and the small custom inline
-  vocabulary are appropriate when they expose distinctions already present in
-  the manuals.
-* Serve human and LLM readers. No downstream tool is expected to reconstruct a
-  complete API model from rendered output.
-
-The objective is presentational semantics, not a machine-validated
-specification of PCRE2.
-
-## Design principles
-
-Use standard document structure before inventing inline syntax. Source
-languages, description lists, block roles, tables, and admonitions communicate
-most of the useful meaning with standard AsciiDoc.
-
-Do not create separate inline forms for input and output parameters, options,
-errors, callbacks, fields, defaults, deprecated names, or experimental names.
-The surrounding prose, section, or list supplies that context.
-
-Colour must not be the only distinction. In the manpage converter, functions
-are roman, types and constants are bold, parameters are italic, and the other
-inline semantic forms remain legible in monospace. HTML receives semantic
-classes from the same backend-neutral AsciiDoc nodes.
-
-The semantic vocabulary does not include raw HTML, styling-only backend
-conditionals, or `pass:[]` workarounds.
-
-HTML rendering uses the `asciidoctor-html5s` gem through `Pcre2HtmlConverter`,
-registered as the `html5` backend in `maint/AsciidocConverterPcre2.rb`. The
-subclass is reserved for PCRE2-specific overrides. It produces semantic HTML
-with fewer presentation wrappers; the default Asciidoctor CSS is not compatible
-with all of its markup. The gem's typography substitutions apply to both HTML
-and manpages: `--` becomes an en dash and `---` becomes an em dash in ordinary
-prose. The manpage converter remains separate.
-
-The extension supplies shared defaults before the document header is parsed:
-`lang=en`, `source-highlighter=rouge`, and, for HTML only, `nofooter`. Document
-headers can override or unset these defaults, and CLI/API attribute locks are
-respected. HTML uses Asciidoctor's Rouge integration; the manpage converter
-continues to highlight C source independently. Rendering commands specify only
-the input, backend, extension, output, and `--failure-level WARN` to reject
+`AsciidocConverterPcre2.rb` supplies shared Asciidoctor extensions and separate
+HTML and manpage converters. HTML builds on `asciidoctor-html5s`; both backends
+use Rouge for explicitly typed programming-language source. Rendering fails on
 documentation warnings.
 
-## Inline public API vocabulary
+There are two HTML consumers:
 
-The converter implements five short-form inline macros. They do not take a
-trailing `[]`.
+* `UpdateAlways.rb doc` generates complete standalone manuals, manpages and
+  plain-text documentation from `doc/*.adoc`.
+* `BuildPages.rb` builds the Jekyll website. Its plugin renders the same sources
+  as HTML fragments in-process and uses Kramdown for Markdown. It does not read
+  the generated standalone HTML. Imported document bodies are not Liquid
+  templates.
 
-| Macro | Use | Example | HTML role | Manpage presentation |
-| --- | --- | --- | --- | --- |
-| `func:` | Public PCRE2 function, including `()` | `func:pcre2_match()` | `function` | Roman |
-| `type:` | Public PCRE2/POSIX type | `type:PCRE2_SIZE`, `type:uint32_t` | `type` | Bold |
-| `const:` | Public constant, option, flag, error, or null value | `const:PCRE2_UTF`, `const:NULL` | `constant` | Bold |
-| `arg:` | Lower-case argument, callback, or structure-member name | `arg:match_data` | `parameter` | Italic |
-| `char:` | Numeric character or code-point value | `char:0x0A`, `char:U+212A` | `character` | Monospace |
+For Markdown inside raw HTML table cells, use `markdown="block"` on the cell.
+
+Local manual links are adjusted after rendering: `./target.html` offline,
+`./target/` from the website index, and `./../target/` between website manuals.
+Author normal AsciiDoc cross-references; do not change source links for either
+output.
+
+Styling has three owners:
+
+| Source | Responsibility |
+| --- | --- |
+| `doc/html/css/document.css` | Shared brand, typography/reset, content and source-token styles |
+| `doc/html/css/standalone.css` | Standalone document layout |
+| `pages/css/style.css` | Website layout and font loading |
+
+Standalone manuals load the two CSS files directly.
+Shared SVGs live in `doc/html/images`. Standalone manuals are JavaScript-free,
+using CSS character cards with anchor positioning and a basic relative-position
+fallback. They work offline using
+installed fonts and fallbacks; only the website ships Fira fonts and their
+licence.
+
+## Inline vocabulary
+
+Use a macro for one public entity, and a code span for an expression or fragment.
+These short-form macros do not take trailing `[]`.
+
+| Form | Meaning | Example |
+| --- | --- | --- |
+| `func:` | PCRE2 function, including its parentheses | `func:pcre2_match()` |
+| `type:` | PCRE2 type or conventional `_t` type | `type:PCRE2_SIZE` |
+| `const:` | Upper-case constant, option or error name | `const:PCRE2_UTF` |
+| `arg:` | Lower-case parameter, callback or member name | `arg:match_data` |
+| `char:` | Hexadecimal character or Unicode code point | `char:U+000A` |
+| `macroval:` | A supported numerical default or limit from the sources | `macroval:MAX_NAME_SIZE` |
+
+In HTML, `char:` shows a character card on hover or keyboard focus, with its
+Unicode name and code point. Hexadecimal forms use the Unicode interpretation;
+non-printing characters use a box, and surrogates or out-of-range values are
+labelled explicitly. Manpages retain only the original notation.
+
+`macroval:bytes,NAME` formats a byte count with exact binary units where
+possible. Keep other units in the prose. Supported names are listed in the
+converter; unknown or ambiguous definitions fail rendering. Examples, historical
+values and recommendations should retain literal numbers.
+
+Use prefix roles on constrained monospace spans:
+
+| Form | Use |
+| --- | --- |
+| `[.c]` | C expressions, calls, casts, identifier families and other fragments |
+| `[.regex]` | PCRE2 pattern syntax |
+| `[.subject]` | Literal input or matched text |
+| `[.repl]` | Replacement syntax or literal replacement results |
+| Plain backticks | File names, commands, diagnostics and other neutral computer text |
 
 For example:
 
 ```adoc
-The func:pcre2_substitute() function writes the result to arg:buffer.
-Its arg:options argument may contain const:PCRE2_SUBSTITUTE_GLOBAL.
-The buffer length has type type:PCRE2_SIZE.
-The newline character is char:U+000A.
+Call func:pcre2_match() with arg:subject of type type:PCRE2_SPTR.
+The ending offset is [.c]`ovector[1]`.
+The pattern [.regex]`+cat|dog+` matches [.subject]`cat`.
 ```
 
-Keep punctuation visible in the source. In particular, a `func:` target
-contains its `()`; the converter does not add them.
+Do not put macros inside source blocks or add separate macros for every kind
+of API fact. Context supplies distinctions such as input/output, deprecation
+and experimental status.
 
-The macro recognizers deliberately accept only the naming shapes implemented
-in `maint/AsciidocConverterPcre2.rb`:
+### Literal syntax and placeholders
 
-* `func:` accepts lower-case `pcre2_` names followed by `()`.
-* `type:` accepts upper-case `PCRE2_` names, lower-case `pcre2_` names, and
-  conventional names ending in `_t`.
-* `const:` accepts upper-case names made from letters, digits, and underscores.
-* `arg:` accepts lower-case names made from letters, digits, and underscores.
-* `char:` accepts hexadecimal `0x...` and Unicode `U+...` values.
-
-Use these macros for individual public entities in prose and description-list
-terms. Use `[.c]` instead for a C expression, a family or prefix rather than one
-entity, a width-specific spelling shown as source text, or a non-PCRE2 helper:
-
-```adoc
-Functions beginning with [.c]`pcre2_serialize_` form one family.
-The width-specific call is [.c]`pcre2_match_16()`.
-The allocator calls [.c]`malloc()`.
-```
-
-Do not put inline macros inside source blocks. The block's language and role
-carry the semantics there.
-
-## Inline code roles
-
-Use constrained monospace spans with a prefix role. Do not use postfix role
-syntax.
-
-### C fragments
-
-Use `c` for C expressions and fragments that are not a single public API
-entity:
-
-```adoc
-The first ending offset is stored in [.c]`ovector[1]`.
-Test [.c]`code != NULL` before calling func:pcre2_match().
-```
-
-This includes array and member access, casts, pointer expressions, library or
-local function calls, and incomplete identifier families. The manpage renders
-the complete span in monospace; the HTML retains the `c` role.
-
-### Patterns
-
-Use `regex` for literal PCRE2 pattern syntax, including a single
-metacharacter, escape, option, property value when presented as syntax, or
-complete pattern fragment:
-
-```adoc
-[.regex]`+(*MARK:NAME)+`
-[.regex]`\R`
-[.regex]`(?<__name__>[a-z]{plus})`
-```
-
-Multiline patterns use a `[source,regex]` block instead. Do not use neutral
-monospace or a C block merely because a pattern is short.
-
-### Subject and replacement text
-
-Use `subject` for literal input or matched characters:
-
-```adoc
-The pattern [.regex]`cat` matches [.subject]`cat`.
-```
-
-Use `repl` for replacement-string syntax and literal replacement results:
-
-```adoc
-Replace it with [.repl]`${_n_}-copy`.
-```
-
-The role describes the characters inside the span. Presentation quotation
-marks and slash delimiters sit outside the span; delimiters that are actual
-syntax sit inside it.
-
-### Neutral monospace
-
-Use neutral monospace only for computer text that is not one of the categories
-above. Examples include file and library names, command-line options and
-commands, literal diagnostic/output text, program names, and syntax from
-another language when no PCRE2 role applies:
-
-```adoc
-the file `pcre2.h`, the command `make check`, and the output `no match`
-```
-
-Terms quoted merely as terminology remain ordinary prose, not code.
-
-## Protected and processed inline spans
-
-AsciiDoc substitutions can change literal punctuation. Choose the span form
-from its contents.
-
-Prefer the backtick-plus form when the contents must pass through literally:
+Use backtick-plus spans when punctuation must pass through literally:
 
 ```adoc
 [.regex]`+(*MARK:NAME)+`
 [.regex]`+\Q...\E+`
-[.repl]`+\u\L+`
 ```
 
-This protects sequences such as `...`, `--`, braces, and other punctuation
-from normal AsciiDoc substitutions.
-
-Use a plain backtick form when substitutions are intentionally required:
-
-* an italic placeholder occurs inside the span;
-* an attribute such as `{plus}`, `{backslash}`, `{blank}`, or `{startsb}` must
-  expand; or
-* a literal leading/trailing single plus or a double-plus sequence would
-  conflict with the passthrough delimiter.
-
-Examples:
+Use ordinary backtick spans when attributes or emphasis must be processed:
 
 ```adoc
-[.regex]`\g<__n__>`
-[.regex]`{plus}__n__`
-[.repl]`${_n_:{plus}__string1__:__string2__}`
+[.regex]`(?<__name__>[a-z]{plus})`
+[.repl]`${_n_:{plus}__text__}`
 ```
 
-In a processed span, escape or replace any AsciiDoc metacharacter that must
-remain literal. Choose the protected or processed form from the rules above,
-and check the rendered text.
+Placeholders are italic; use double underscores when surrounding syntax would
+prevent ordinary emphasis. Keep grammar delimiters, but put presentation quotes
+or slash pairs outside the span. Character attributes such as `{backtick}`,
+`{plus}`, `{backslash}`, `{blank}` and `{startsb}` avoid conflicts with AsciiDoc
+parsing. Check the rendered text when combining these forms.
 
-## Placeholders and delimiters
+## Blocks and lists
 
-Use italic metavariables. In ordinary prose, write `_n_`, `_name_`, and similar
-forms. Inside constrained monospace, a single underscore pair works where the
-placeholder has a clear boundary, while double underscores are required when
-adjacent syntax would otherwise prevent emphasis:
-
-```adoc
-[.regex]`{_n_,_m_}`
-[.regex]`(?<__name__>...)`
-[.repl]`$<__name__>`
-```
-
-Prefer the robust double-underscore form for a placeholder embedded directly
-among syntax characters. Both forms render only the placeholder in italics;
-the punctuation remains monospace.
-
-Do not add decorative angle brackets around a metavariable. For example:
-
-```adoc
-[.regex]`\p{Bidi_Class:__class__}`
-```
-
-Keep brackets, quotes, braces, or slashes that belong to the grammar:
-
-```adoc
-[.regex]`\g<__n__>`
-[.regex]`\k'__name__'`
-[.regex]`(?C"__text__")`
-[.regex]`+/x+`
-```
-
-The first three examples contain syntactic delimiters. The slash in `/x`,
-`/xx`, `/s`, or `/v` is part of a Perl-style mode name. A slash pair used only
-to display a pattern is not part of a `regex` span.
-
-Use the `{backtick}` attribute when a literal backtick must be shown inside a
-constrained span. Use character attributes such as `{plus}`, `{backslash}`,
-`{blank}`, and `{startsb}` when literal source punctuation would collide with
-AsciiDoc parsing.
-
-## Headings, declarations, and C examples
-
-API names in prose headings use the same macro as prose:
-
-```adoc
-=== Option bits for func:pcre2_match()
-```
-
-Manpage document titles such as `= pcre2_match(3)` remain plain because the
-manpage metadata and synopsis establish their identity.
-
-Function declarations use C source blocks with the `prototype` role:
+Declare a source block's actual language; never choose one just for colour.
+Untyped blocks and `text` remain unparsed. `regex`, `subject` and `repl` are
+semantic forms, not programming-language lexers.
 
 ```adoc
 [source,c,role=prototype]
@@ -273,50 +127,13 @@ int pcre2_match(const pcre2_code *code, PCRE2_SPTR subject,
 ----
 ```
 
-The `prototype` role lets the manpage converter italicize otherwise generic
-parameter names while Rouge identifies C keywords, PCRE2 types, constants, and
-functions. HTML receives both the language and role classes.
+Use `prototype` for API declarations, `synopsis` for command synopses, and
+`wide` only for the fixed-column demo listing. Source/listing blocks use `----`;
+literal preformatted material uses `....`. Add `subs=normal` only when
+substitutions are intended, for example in a pattern containing placeholders.
+Do not use literal blocks to imitate structured lists.
 
-Use `[source,c]` for executable C examples and C declarations that are not API
-synopses. The language must describe the contents; source in another language
-must not be labelled C.
-
-## Block formats
-
-Use the narrowest block format that describes the content.
-
-* `[source,regex]` is for multiline PCRE2 patterns.
-* `[source,regex,subs=normal]` is for a pattern block that intentionally
-  contains AsciiDoc emphasis or attributes, normally italic placeholders.
-* `[source,c]` is for C code.
-* `[source,text]` is for transcripts, diagnostic output, aligned byte layouts,
-  annotated source-like displays, and other neutral preformatted text.
-* `[source,shell]` is for shell commands.
-* `[source,shell,role=synopsis]` is for a command-manual synopsis.
-* `[source,c,role=wide]` is reserved for the fixed-column `pcre2demo` listing,
-  which must extend from the physical left margin.
-
-Use `----` delimiters for listing and source blocks, and `....` delimiters for
-literal blocks. The delimiter supplies the block style, so bare `[listing]`
-and `[literal]` style lines are omitted. An explicit style is used when the
-attribute list also supplies necessary attributes, such as
-`[literal,subs=normal]`.
-
-Use literal blocks for genuinely preformatted non-source material, such as a
-quoted preformatted passage or a subject display whose spacing matters. The
-manpage converter renders literal, listing, and source blocks in a monospaced
-font at the surrounding text margin. Do not use a literal block as a visual
-substitute for a description list or a source block.
-
-Do not add a source language solely to obtain colour. In particular,
-`pcre2test` sessions and matched-output displays are text, not regular
-expressions, even when they contain regex punctuation.
-
-## Description lists
-
-Description lists represent API parameters, options, values, return cases,
-errors, and dense syntax inventories. Put the role on the list as a block
-attribute:
+Description lists suit parameters, options, return cases and syntax inventories:
 
 ```adoc
 [.parameters]
@@ -324,177 +141,83 @@ arg:code::
     The compiled pattern.
 arg:subject::
     The subject string.
-
-[.returns]
-Positive value::
-    The number of captured substrings.
-
-[.errors]
-const:PCRE2_ERROR_NOMATCH::
-    No match was found.
 ```
 
-Description-list roles used in the sources are:
+The corresponding list roles are `parameters`, `options`, `values`, `returns`,
+`errors` and `members`. Use `::` for top-level terms and `:::` for nested terms;
+keep each term and delimiter on one source line. Consecutive terms may share a
+description; lists with multi-term entries are spaced. The renderer chooses
+label width and compact/spaced presentation;
+an integer `width` attribute can override the label-width estimate.
 
-| Role | Use |
-| --- | --- |
-| `parameters` | Named function arguments |
-| `options` | Option bits and option names |
-| `values` | Enumerated values or information selectors |
-| `returns` | Return cases |
-| `errors` | Error values |
-| `members` | Structure members |
+Use ordinary lists for narrative sequences, continuation `+` and open blocks
+for attached material, and `[loweralpha]` when lettered conditions matter.
+Reserve tables for genuinely two-dimensional information; specify `cols` and
+`options="header"` where appropriate.
+Two-column lookup tables can add the `fit-first` role (for example,
+`[.fit-first,cols="2,3"]`) to fit an unbroken first column and fill the remaining
+width with the second. Below 600px, the columns stack and long names can wrap.
 
-These roles become HTML classes. All description lists use the same
-four-en-indented `.TP` presentation in manpage output. The converter chooses a
-useful label width from the distribution of visible term lengths, using a
-compact fallback when a strict majority do not fit within its maximum. Lists
-whose item bodies contain additional blocks have normal paragraph spacing;
-simple lists are compact. A numeric `width` attribute may override the
-calculation when a particular list needs it.
+Use standard `NOTE`, `WARNING` and `IMPORTANT` blocks sparingly. Reuse standard
+AsciiDoc structure rather than raw HTML or backend-specific passthrough tricks.
 
-Use `::` for a top-level term and `:::` for a nested description list. A group
-of consecutive terms may share the description attached to the final term.
-Keep every term and its terminating delimiter on one source line, including
-terms made from several inline spans. Splitting a term can make `::` render as
-literal text.
+## Source presentation
 
-Narrative sequences remain ordinary bulleted or numbered lists. The
-`[loweralpha]` style is used when lettered conditions are significant.
-Continuation `+` and open blocks `--` are used where a list item contains a
-block or nested list. The `[horizontal]` style is used when its compact
-two-column presentation is appropriate.
+Rouge tokens and shortcut macros share presentation profiles. C token fixups
+recognize PCRE2 types/constants and function calls; they are naming heuristics,
+not a C parser. Other identifiers may receive variable treatment. A `*` or `&`
+operator not followed by whitespace is treated as punctuation.
 
-Prefer a description list to a table for one-name/one-description material.
-Tables are reserved for genuinely two-dimensional comparisons. Tables declare
-`cols` and `options="header"` and are checked in both HTML and manpage output
-because roff table layout is less forgiving.
+| Category | Typeface | Colour when highlighted |
+| --- | --- | --- |
+| Keywords and operators | Roman | Secondary 3 |
+| Literals | Roman | Secondary 2 |
+| Preprocessor text | Roman | Secondary 2 |
+| Named and keyword constants such as `NULL` | Bold | Secondary 2 |
+| Types and `const` | Roman | Inherited |
+| Functions | Bold | Theme |
+| Comments | Italic | Neutral |
+| Variables and parameters | Italic | Secondary 1 |
+| Other tokens and neutral text | Roman | Inherited |
 
-## Admonitions
+Manpages use the same typeface profiles without colour. Semantic regex,
+subject and replacement text is unparsed: upright, theme-coloured HTML and
+italic manpage text. Explicit highlighting uses the same colours inline and in
+blocks, except that headings and contents links override pattern colours.
+API shortcodes retain their token's weight and slant but inherit the
+surrounding colour. Essential meaning must not rely on these styles.
 
-Standalone callouts use standard block admonitions:
+## Headings and links
 
-```adoc
-[WARNING]
-====
-Passing invalid UTF with checking disabled can crash or loop.
-====
-```
+Use the normal inline vocabulary in prose headings. Manpage document titles,
+such as `= pcre2_match(3)`, remain plain.
 
-`NOTE`, `WARNING`, and `IMPORTANT` are present in the manuals. Use a note for
-an explanatory qualification, a warning for a serious unsafe or corrupting
-consequence, and important for a correctness requirement that must stand out.
-Do not turn every precondition or occurrence of "must" into an admonition.
-
-Narrative warnings may begin with the literal word `Warning:`. Standalone
-warnings use a block admonition. Neither form uses `pass:[NOTE:]` or a similar
-escaped label.
-
-## Cross-references and ordinary prose
-
-Give every section that is the target of a cross-reference an explicit,
-stable anchor immediately before its heading:
+Give referenced sections explicit, stable, lower-case hyphenated anchors:
 
 ```adoc
 [[non-printing-characters]]
 === Non-printing characters
 ```
 
-Use concise lower-case, hyphen-separated IDs. Once an ID is referenced, treat
-it as a stable public target.
+Within a document, `<<non-printing-characters>>` uses the target heading as its
+label. For another document, use
+`xref:pcre2pattern.adoc#non-printing-characters[Non-printing characters]`;
+match the heading's wording and formatting. Label whole-document links with
+the document name.
 
-For a section in the same document, use the short form and let Asciidoctor take
-the link text from the target heading:
+Author credits use ordinary paragraphs and explicit `+` line breaks where
+needed. Mark revision headings `[discrete]` so they stay out of the contents.
 
-```adoc
-See the section <<non-printing-characters>> above.
-```
+## Building
 
-For a section in another document, use `xref:` with the anchor and explicit
-link text:
+Generate distributed documentation with `ruby maint/UpdateAlways.rb doc`
+(requires the converter gems and man/groff tools).
 
-```adoc
-See the section
-xref:pcre2pattern.adoc#non-printing-characters[Non-printing characters]
-in the
-xref:pcre2pattern.adoc[`pcre2pattern`]
-documentation.
-```
+For the website, install `pages/Gemfile` with Bundler, then run
+`ruby maint/BuildPages.rb --base-url https://example.org/pcre2/`
+or set `PAGES_BASE_URL`. Node/npm runs pinned Pagefind; `--no-pagefind` skips
+indexing for previews. The site lockfile selects Jekyll-compatible Rouge 4.x;
+the standalone converter can also use Rouge 5.
 
-The explicit link text must match the target heading exactly, including its
-capitalization, wording, and inline formatting. A link to another document as
-a whole uses the document name as its label, as in the second `xref:` above.
-
-Normal prose remains normal prose. Quotation marks used for terminology,
-English words, error messages, or cited titles do not by themselves imply a
-semantic role. Semantic markup does not change technical wording.
-
-## Backend requirements
-
-Roles and colours may disappear in terminal output; meaning must remain clear
-from headings, list structure, font choice, and prose.
-
-* Functions are roman, types and constants bold, and parameters italic.
-* Character values and neutral computer text remain monospaced.
-* C declarations and source examples preserve their alignment.
-* Inline C, regex, subject, and replacement spans remain intact and legible.
-* Description lists render as four-en-indented `.TP` entries.
-* Literal, listing, and source blocks use the surrounding text margin.
-* The `wide` source role temporarily moves content to the physical left margin.
-* Admonition labels and content remain visible without decorative styling.
-* No essential distinction is communicated only by HTML colour.
-
-The manpage converter uses Rouge only for C source. C blocks containing
-Asciidoctor callouts deliberately take the unhighlighted path so protected
-callout markup survives. Regex, shell, and text blocks remain monospaced
-without C token classification.
-
-## Author and revision sections
-
-Author credits use ordinary paragraphs with explicit line breaks for a short
-address:
-
-```adoc
-== Author
-
-Philip Hazel +
-Retired from University Computing Service +
-Cambridge, England.
-```
-
-The revision information that follows is a discrete section so it does not
-appear in the table of contents:
-
-```adoc
-[discrete]
-== Revision
-
-Last updated: 25 October 2025 +
-Copyright (C) 1997-2024 University of Cambridge.
-```
-
-## Review checklist
-
-When editing markup:
-
-1. Choose the semantic category from the text's meaning, not its punctuation.
-2. Use a public API macro for one public entity and an inline role for a
-   fragment.
-3. Decide whether each inline span must be protected or processed.
-4. Verify that italic placeholders render as emphasis and syntax delimiters
-   remain literal.
-5. Give each source block its actual language; use `subs=normal` only when
-   substitutions are intended.
-6. Keep description-list term delimiters on the term line.
-7. Check tables, nested lists, list continuations, and admonitions in context.
-8. Render both HTML and manpage output after structural changes.
-
-Do not:
-
-* build a complete API schema in AsciiDoc;
-* add a custom macro for every category of fact;
-* leave literal pattern syntax bare or mark it as generic code;
-* put presentation quotes inside a semantic span;
-* use a passthrough around placeholders that must be italicized;
-* label non-C source as C or matched output as regex; or
-* use literal blocks or tables as substitutes for description lists.
+After structural changes, inspect both HTML and manpage rendering. In
+particular, check literal syntax, placeholders, nested lists, tables and links.
